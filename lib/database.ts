@@ -44,6 +44,15 @@ async function connectToDatabase() {
       );
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS festivos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        fecha DATE NOT NULL UNIQUE,
+        nombre VARCHAR(255) NOT NULL,
+        tipo ENUM('FIJO', 'MOVIL') NOT NULL
+      );
+    `);
+
     // Insert predefinidos if table is empty
     const [rows]: any = await pool.execute('SELECT COUNT(*) as count FROM cargos');
     const result = rows[0];
@@ -142,6 +151,46 @@ export async function exportarBaseDeDatos() {
   const data = { accesos, cargos };
   fs.writeFileSync(path.join(process.cwd(), 'db_export.json'), JSON.stringify(data, null, 2));
   return data;
+}
+
+export async function agregarFestivo(fecha: string, nombre: string, tipo: 'FIJO' | 'MOVIL') {
+  const pool = await connectToDatabase();
+  try {
+    const [result]: any = await pool.execute(
+      'INSERT INTO festivos (fecha, nombre, tipo) VALUES (?, ?, ?)',
+      [fecha, nombre, tipo]
+    );
+    return result;
+  } catch (error) {
+    console.error('Error al agregar festivo:', error);
+    throw error;
+  }
+}
+
+export async function obtenerFestivos() {
+  const pool = await connectToDatabase();
+  const [rows]: any = await pool.execute('SELECT * FROM festivos ORDER BY fecha');
+  return rows;
+}
+
+export async function obtenerFestivosPorAño(año: number) {
+  const pool = await connectToDatabase();
+  const [rows]: any = await pool.execute(
+    'SELECT * FROM festivos WHERE YEAR(fecha) = ? ORDER BY fecha',
+    [año]
+  );
+  return rows;
+}
+
+export async function eliminarFestivo(fecha: string) {
+  const pool = await connectToDatabase();
+  try {
+    const [result]: any = await pool.execute('DELETE FROM festivos WHERE fecha = ?', [fecha]);
+    return result;
+  } catch (error) {
+    console.error('Error al eliminar festivo:', error);
+    throw error;
+  }
 }
 
 export { connectToDatabase }; 

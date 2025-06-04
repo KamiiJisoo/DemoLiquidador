@@ -430,6 +430,7 @@ const ModalGestionCargos = ({ onClose, cargos, fetchCargos, cargoSeleccionado }:
 
 export default function ControlHorasExtras() {
   const [fechaInicio, setFechaInicio] = useState<Date>(startOfMonth(new Date()))
+  const [festivos, setFestivos] = useState<{ fecha: string; nombre: string; tipo: 'FIJO' | 'MOVIL' }[]>([])
   const [diasMes, setDiasMes] = useState<{ [key: string]: DiaData }>({})
   const [cargoSeleccionado, setCargoSeleccionado] = useState("BOMBERO")
   const [salarioMensual, setSalarioMensual] = useState(2054865)
@@ -548,13 +549,28 @@ export default function ControlHorasExtras() {
     return semanas
   })()
 
+  // Verificar si una fecha es festivo
+  const esDiaFestivo = (fecha: Date): boolean => {
+    const fechaStr = format(fecha, "yyyy-MM-dd")
+    const esDomingo = fecha.getDay() === 0
+    return esDomingo || festivos.some(f => f.fecha === fechaStr);
+  }
+
   // Obtener los días de la semana actual
   const diasSemanaActual = (() => {
     const semana = semanasDelMes[semanaActual]
-    const dias = []
+    const dias: Date[] = []
+    if (!semana) {
+      console.log('Semana object is undefined, returning empty days array.'); // Log si semana es undefined
+      return dias; // Retornar array vacío si semana no está definida
+    }
+    console.log(`Generating days for week starting: ${semana.inicio}`); // Log inicio de semana
     for (let i = 0; i < 7; i++) {
       const fecha = addDays(semana.inicio, i)
       dias.push(fecha)
+      const fechaStr = format(fecha, "yyyy-MM-dd");
+      const isHoliday = esDiaFestivo(fecha);
+      console.log(`Date: ${fechaStr}, isHoliday: ${isHoliday}`); // Log si el día se identifica como festivo
     }
     return dias
   })()
@@ -583,14 +599,6 @@ export default function ControlHorasExtras() {
 
     setDiasMes(nuevoDiasMes)
   }, [fechaInicio])
-
-  // Verificar si una fecha es festivo
-  const esDiaFestivo = (fecha: Date): boolean => {
-    const fechaStr = format(fecha, "yyyy-MM-dd")
-    const esDomingo = fecha.getDay() === 0
-    const año = fecha.getFullYear().toString() as AñoFestivo
-    return esDomingo || (festivos[año] && festivos[año].includes(fechaStr))
-  }
 
   // Manejar cambio de cargo
   const handleCambiarCargo = (valor: string) => {
@@ -884,6 +892,38 @@ export default function ControlHorasExtras() {
   const valorExtraNocturnaLV = valorMinuto * calculoHoras.horasExtNocturnasLV * 1.75
   const valorExtraDiurnaFestivo = valorMinuto * calculoHoras.horasExtDiurnasFestivos * 2.25
   const valorExtraNocturnaFestivo = valorMinuto * calculoHoras.horasExtNocturnasFestivos * 2.75
+
+  useEffect(() => {
+    const loadFestivos = async () => {
+      try {
+        console.log('Fetching holidays from /api/festivos...'); // Log de inicio de fetch
+        const res = await fetch('/api/festivos');
+        if (!res.ok) {
+          console.error('Error fetching holidays: HTTP status', res.status);
+          return;
+        }
+        const data = await res.json();
+        console.log('Fetched raw data:', data); // Log datos crudos
+        if (data && Array.isArray(data.festivos)) {
+          // Formatear la fecha de cada festivo a "yyyy-MM-dd"
+          const formattedFestivos = data.festivos.map((f: { fecha: string | Date; nombre: string; tipo: 'FIJO' | 'MOVIL' }) => ({
+            ...f,
+            fecha: format(new Date(f.fecha), "yyyy-MM-dd")
+          }));
+          setFestivos(formattedFestivos);
+          console.log('Holidays loaded successfully. Total:', formattedFestivos.length); // Log éxito y cantidad
+          console.log('Example holidays:', formattedFestivos.slice(0, 5)); // Log primeros 5
+        } else {
+          console.error('Fetched data does not contain a festivos array or is not an array:', data); // Log error en formato
+          setFestivos([]);
+        }
+      } catch (err) {
+        console.error('Error loading holidays:', err);
+        setFestivos([]); // Asegurarse de que festivos sea un array vacío en caso de error
+      }
+    };
+    loadFestivos();
+  }, []); // Este efecto se ejecuta solo una vez al montar el componente
 
   return (
     <div className="container mx-auto py-8 flex flex-col gap-8">

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "export": "next build && next export",
-    "deploy": "gh-pages -d out"
+    "deploy": "gh-pages -d out",
+    "migrar-festivos": "tsx scripts/migrar_festivos.ts"
   },
   "dependencies": {
     "@next/swc-win32-x64-msvc": "^15.3.2",
@@ -67,6 +68,8 @@
     "gh-pages": "^6.3.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.4",
     "typescript": "^5.3.3"
   }
 }
