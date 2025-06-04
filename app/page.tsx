@@ -49,7 +49,8 @@ interface DiaData {
   entrada2: string
   salida2: string
   total: string
-  esFestivo: boolean
+  isHoliday: boolean
+  isSunday: boolean
 }
 
 // Interfaz para los cálculos de horas
@@ -585,7 +586,8 @@ export default function ControlHorasExtras() {
     for (let i = 0; i < diasEnMes; i++) {
       const fecha = addDays(primerDia, i)
       const fechaStr = format(fecha, "yyyy-MM-dd")
-      const esFestivo = esDiaFestivo(fecha)
+      const isSunday = fecha.getDay() === 0;
+      const isHoliday = festivos.some(f => f.fecha === fechaStr);
 
       nuevoDiasMes[fechaStr] = {
         entrada1: "",
@@ -593,12 +595,13 @@ export default function ControlHorasExtras() {
         entrada2: "",
         salida2: "",
         total: "",
-        esFestivo: esFestivo || fecha.getDay() === 0, // Domingo o festivo
+        isHoliday: isHoliday,
+        isSunday: isSunday,
       }
     }
 
     setDiasMes(nuevoDiasMes)
-  }, [fechaInicio])
+  }, [fechaInicio, festivos])
 
   // Manejar cambio de cargo
   const handleCambiarCargo = (valor: string) => {
@@ -680,7 +683,7 @@ export default function ControlHorasExtras() {
     Object.entries(diasMes).forEach(([fecha, dia]) => {
       if (dia.total === "Error") return
       const fechaDate = parse(fecha, "yyyy-MM-dd", new Date())
-      const esFestivo = dia.esFestivo
+      const esFestivo = dia.isHoliday || dia.isSunday; // Considerar domingos como festivos para cálculo
       // Procesar ambos turnos
       const turnos = [
         { entrada: dia.entrada1, salida: dia.salida1 },
@@ -1045,7 +1048,7 @@ export default function ControlHorasExtras() {
                   const nombreDia = format(fechaDate, "EEEE", { locale: es }).toUpperCase()
                   const fechaFormateada = format(fechaDate, "dd/MM/yyyy")
                   const esDelMes = isSameMonth(fechaDate, fechaInicio)
-                  const dia = diasMes[fechaStr] || { entrada1: "", salida1: "", entrada2: "", salida2: "", total: "", esFestivo: false }
+                  const dia = diasMes[fechaStr] || { entrada1: "", salida1: "", entrada2: "", salida2: "", total: "", isHoliday: false, isSunday: false }
                   const rowBg = idx % 2 === 0 ? "bg-white" : "bg-[#F8FAFC]"
                   return (
                     <div
@@ -1112,12 +1115,17 @@ export default function ControlHorasExtras() {
                         {dia.total || "0:00"}
                       </div>
                       <div className="flex justify-center">
-                        {dia.esFestivo && (
+                        {dia.isHoliday ? (
                           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F44E4E] text-white font-bold text-sm">
                             <AlertCircle className="w-4 h-4" />
-                            Domingo/Festivo
+                            Festivo
                           </span>
-                        )}
+                        ) : dia.isSunday ? (
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F44E4E] text-white font-bold text-sm">
+                            <AlertCircle className="w-4 h-4" />
+                            Domingo
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   )
