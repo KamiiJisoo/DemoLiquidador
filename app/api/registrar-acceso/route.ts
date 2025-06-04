@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { registrarAcceso } from '@/lib/sqlite';
+import { registrarAcceso } from '@/lib/database';
 
 export async function POST(request: NextRequest) {
+  console.log('POST /api/registrar-acceso called');
   try {
     // Obtener IP del request
     const forwardedFor = request.headers.get('x-forwarded-for');
@@ -11,7 +12,7 @@ export async function POST(request: NextRequest) {
     const ip = forwardedFor?.split(',')[0] || realIP || request.ip || 'localhost';
     
     // Registrar el acceso
-    registrarAcceso(ip);
+    await registrarAcceso(ip);
     
     return NextResponse.json({ success: true });
   } catch (error) {

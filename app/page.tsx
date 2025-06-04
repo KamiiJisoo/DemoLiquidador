@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { format, addDays, startOfMonth, endOfMonth, parse, differenceInHours, differenceInMinutes, getDaysInMonth, startOfWeek, endOfWeek, isSameMonth, isBefore, isAfter } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar, Clock, AlertCircle, Lock } from "lucide-react"
@@ -76,6 +76,358 @@ interface EventTarget {
 // Utilidad para validar hora en formato HH:mm
 const esHoraValida = (valor: string) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(valor)
 
+// Modal de gestión de cargos
+const ModalGestionCargos = ({ onClose, cargos, fetchCargos, cargoSeleccionado }: { onClose: () => void; cargos: Array<{ id: number; nombre: string; salario: number }>; fetchCargos: () => Promise<void>; cargoSeleccionado: string }) => {
+  const [editandoCargo, setEditandoCargo] = useState<string | null>(null);
+  const [valorEditando, setValorEditando] = useState("");
+  const [editandoSalario, setEditandoSalario] = useState("");
+  const [nuevoCargo, setNuevoCargo] = useState("");
+  const [nuevoSalario, setNuevoSalario] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleNuevoCargoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('Nuevo Cargo input changed:', e.target.value);
+    const value = e.target.value.toUpperCase()
+    setNuevoCargo(value)
+  };
+
+  const handleNuevoSalarioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('Nuevo Salario input changed:', e.target.value);
+    const value = e.target.value.replace(/[^0-9]/g, '')
+    setNuevoSalario(value)
+  };
+
+  const handleGuardarEdicion = async (cargoId: number) => {
+    try {
+      if (!valorEditando.trim() || !editandoSalario) {
+        setError('El nombre y salario son requeridos');
+        return;
+      }
+
+      const res = await fetch(`/api/cargos/${cargoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          nombre: valorEditando, 
+          salario: Number(editandoSalario) 
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const errorMessage = errorData?.error || 'Error al actualizar cargo';
+        throw new Error(errorMessage);
+      }
+
+      setEditandoCargo(null);
+      setValorEditando("");
+      setEditandoSalario("");
+      setError(null);
+
+      fetchCargos();
+
+    } catch (err: any) {
+      console.error('Error al actualizar cargo:', err);
+      setError(err.message || 'Error al actualizar el cargo');
+    }
+  };
+
+  const handleEliminarCargo = async (cargoId: number) => {
+    try {
+      const res = await fetch(`/api/cargos/${cargoId}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const errorMessage = errorData?.error || 'Error al eliminar cargo';
+        throw new Error(errorMessage);
+      }
+
+      setError(null);
+
+      fetchCargos();
+
+    } catch (err: any) {
+      console.error('Error al eliminar cargo:', err);
+      setError(err.message || 'Error al eliminar el cargo');
+    }
+  };
+
+  const handleSubmitCargo = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    try {
+      if (!nuevoCargo.trim() || !nuevoSalario) {
+        setError('El nombre y salario son requeridos');
+        return;
+      }
+
+      const res = await fetch('/api/cargos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          nombre: nuevoCargo, 
+          salario: Number(nuevoSalario) 
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const errorMessage = errorData?.error || 'Error al crear cargo';
+        throw new Error(errorMessage);
+      }
+
+      setNuevoCargo("");
+      setNuevoSalario("");
+      setError(null);
+      fetchCargos();
+      onClose();
+
+    } catch (err: any) {
+      console.error('Error al agregar cargo:', err);
+      setError(err.message || 'Error al agregar el cargo');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl relative">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-bomberored-800 flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+            Gestión de Cargos
+          </h2>
+          <button
+            className="text-gray-500 hover:text-bomberored-700 transition-colors"
+            onClick={() => onClose()}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong className="font-bold">Error:</strong>
+            <span className="block sm:inline"> {error}</span>
+          </div>
+        )}
+
+        <form
+          className="flex flex-col md:flex-row gap-4 mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200"
+          onSubmit={handleSubmitCargo}
+        >
+          <div className="flex-1">
+            <Label
+              htmlFor="nuevoCargo"
+              className="text-sm font-medium text-gray-700 mb-1 block"
+            >
+              Nuevo Cargo
+            </Label>
+            <input
+              id="nuevoCargo"
+              type="text"
+              placeholder="Ingrese el nombre del cargo"
+              value={nuevoCargo}
+              onChange={handleNuevoCargoChange}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
+              required
+              autoComplete="off"
+              spellCheck="false"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  document.getElementById("nuevoSalario")?.focus();
+                }
+              }}
+            />
+          </div>
+          <div className="w-full md:w-48">
+            <Label
+              htmlFor="nuevoSalario"
+              className="text-sm font-medium text-gray-700 mb-1 block"
+            >
+              Salario
+            </Label>
+            <input
+              id="nuevoSalario"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="Salario"
+              value={nuevoSalario}
+              onChange={handleNuevoSalarioChange}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
+              required
+              autoComplete="off"
+              spellCheck="false"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                }
+              }}
+            />
+          </div>
+          <div className="flex items-end">
+            <Button
+              type="submit"
+              className="w-full md:w-auto bg-bomberored-700 hover:bg-bomberored-800"
+            >
+              Agregar Cargo
+            </Button>
+          </div>
+        </form>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-12 gap-4 font-bold text-sm text-gray-500 border-b border-gray-200 pb-2">
+            <div className="col-span-6">CARGO</div>
+            <div className="col-span-4">SALARIO</div>
+            <div className="col-span-2 text-center">ACCIONES</div>
+          </div>
+          {Array.isArray(cargos) && cargos.map((cargo) => (
+            <div
+              key={cargo.id}
+              className="grid grid-cols-12 gap-4 items-center py-3 border-b border-gray-100"
+            >
+              <div className="col-span-6">
+                {editandoCargo === cargo.id.toString() ? (
+                  <input
+                    type="text"
+                    value={valorEditando}
+                    onChange={(e) =>
+                      setValorEditando(e.target.value.toUpperCase())
+                    }
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
+                    autoComplete="off"
+                    spellCheck="false"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleGuardarEdicion(cargo.id);
+                      }
+                    }}
+                  />
+                ) : (
+                  <span className="font-medium text-gray-900">
+                    {cargo.nombre}
+                  </span>
+                )}
+              </div>
+              <div className="col-span-4">
+                {editandoCargo === cargo.id.toString() ? (
+                   <input
+                     type="text"
+                     inputMode="numeric"
+                     pattern="[0-9]*"
+                     value={editandoSalario}
+                     onChange={(e) => setEditandoSalario(e.target.value.replace(/[^0-9]/g, ''))}
+                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
+                     autoComplete="off"
+                     spellCheck="false"
+                     onKeyDown={(e) => {
+                       if (e.key === "Enter") {
+                         e.preventDefault();
+                         handleGuardarEdicion(cargo.id);
+                       }
+                     }}
+                   />
+                ) : (
+                  <span className="text-gray-900">
+                    $ {cargo.salario ? cargo.salario.toLocaleString() : "0"}
+                  </span>
+                )}
+              </div>
+              <div className="col-span-2 flex items-center justify-end gap-2">
+                {editandoCargo === cargo.id.toString() ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleGuardarEdicion(cargo.id)}
+                    >
+                      Guardar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditandoCargo(null);
+                        setValorEditando("");
+                        setEditandoSalario("");
+                        setError(null);
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditandoCargo(cargo.id.toString());
+                        setValorEditando(cargo.nombre);
+                      }}
+                    >
+                      Editar Nombre
+                    </Button>
+                     <Button
+                       size="sm"
+                       variant="outline"
+                       onClick={() => {
+                         setEditandoSalario(cargo.salario.toString());
+                       }}
+                     >
+                       Editar Salario
+                     </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        handleEliminarCargo(cargo.id);
+                      }}
+                      disabled={cargo.nombre === cargoSeleccionado}
+                    >
+                      Eliminar
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ControlHorasExtras() {
   const [fechaInicio, setFechaInicio] = useState<Date>(startOfMonth(new Date()))
   const [diasMes, setDiasMes] = useState<{ [key: string]: DiaData }>({})
@@ -99,9 +451,8 @@ export default function ControlHorasExtras() {
   const [semanaActual, setSemanaActual] = useState(0)
   const [mostrarModalCargos, setMostrarModalCargos] = useState(false)
   const [mostrarModalAuth, setMostrarModalAuth] = useState(false)
-  const [nuevoCargo, setNuevoCargo] = useState("")
-  const [nuevoSalario, setNuevoSalario] = useState("")
   const [cargosState, setCargosState] = useState<{ id: number; nombre: string; salario: number }[]>([])
+  const [accessLogs, setAccessLogs] = useState<Array<{ id: number; ip: string; fecha: string }>>([]);
   const [editando, setEditando] = useState<string | null>(null)
   const [focusedInput, setFocusedInput] = useState<'cargo' | 'salario' | null>(null)
   const inputCargoRef = useRef<HTMLInputElement>(null)
@@ -115,21 +466,66 @@ export default function ControlHorasExtras() {
   const passwordRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    console.log('Registering access...');
     fetch('/api/registrar-acceso', { method: 'POST' });
   }, []);
 
-  useEffect(() => {
-    const fetchCargos = async () => {
-      try {
-        const res = await fetch('/api/cargos');
-        const data = await res.json();
-        setCargosState(data.cargos || []);
-      } catch (err) {
-        console.error('Error al obtener cargos:', err);
+  const fetchCargos = useCallback(async () => {
+    console.log('Attempting to fetch cargos...');
+    try {
+      const res = await fetch('/api/cargos');
+      if (!res.ok) {
+        console.error('Error fetching cargos: HTTP status', res.status);
+        // You might want to throw an error or handle this case
+        return; 
       }
-    };
+      const data = await res.json();
+      console.log('Fetched cargos data:', data);
+      if (data && Array.isArray(data.cargos)) {
+         setCargosState(data.cargos);
+         console.log('Cargos state updated with:', data.cargos);
+      } else {
+         console.error('Fetched data is not an array or does not contain a cargos array:', data);
+         setCargosState([]); // Set to empty array if data is not as expected
+      }
+    } catch (err) {
+      console.error('Error al obtener cargos:', err);
+    }
+  }, [setCargosState]);
+
+  useEffect(() => {
+    console.log('useEffect in ControlHorasExtras triggered.');
     fetchCargos();
-  }, []);
+  }, [fetchCargos]);
+
+  // Function to fetch access logs
+  const fetchAccessLogs = useCallback(async () => {
+    console.log('Attempting to fetch access logs...');
+    try {
+      const res = await fetch('/api/accesos');
+      if (!res.ok) {
+        console.error('Error fetching access logs: HTTP status', res.status);
+        return;
+      }
+      const data = await res.json();
+      console.log('Fetched access logs data:', data);
+      if (data && Array.isArray(data.accesos)) {
+        setAccessLogs(data.accesos);
+        console.log('Access logs state updated with:', data.accesos);
+      } else {
+        console.error('Fetched data is not an array or does not contain an accesos array:', data);
+        setAccessLogs([]); // Set to empty array if data is not as expected
+      }
+    } catch (err) {
+      console.error('Error al obtener logs de acceso:', err);
+    }
+  }, [setAccessLogs]);
+
+  // Fetch access logs when the component mounts
+  useEffect(() => {
+    console.log('useEffect for fetching access logs triggered.');
+    fetchAccessLogs();
+  }, [fetchAccessLogs]);
 
   // Función para formatear minutos a horas:minutos
   const formatTime = (minutos: number) => {
@@ -417,275 +813,6 @@ export default function ControlHorasExtras() {
     }
   }
 
-  // Función para manejar el cambio de cargo
-  const handleNuevoCargoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.toUpperCase()
-    setNuevoCargo(value)
-  }
-
-  // Función para manejar el cambio de salario
-  const handleNuevoSalarioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9]/g, '')
-    setNuevoSalario(value)
-  }
-
-  // Modal de gestión de cargos
-  const ModalGestionCargos = () => {
-    const [editandoCargo, setEditandoCargo] = useState<string | null>(null);
-    const [valorEditando, setValorEditando] = useState("");
-    const [editandoSalario, setEditandoSalario] = useState("");
-    const [error, setError] = useState<string | null>(null);
-
-    const handleGuardarEdicion = async (cargoId: number): Promise<void> => {
-      try {
-        if (!valorEditando.trim() || !editandoSalario) {
-          setError('El nombre y salario son requeridos');
-          return;
-        }
-
-        const res = await fetch(`/api/cargos/${cargoId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            nombre: valorEditando, 
-            salario: Number(editandoSalario) 
-          })
-        });
-
-        if (!res.ok) {
-          throw new Error('Error al actualizar cargo');
-        }
-
-        const cargosActualizados = cargosState.map(cargo => 
-          cargo.id === cargoId 
-            ? { ...cargo, nombre: valorEditando, salario: Number(editandoSalario) }
-            : cargo
-        );
-        setCargosState(cargosActualizados);
-        
-        setEditandoCargo(null);
-        setValorEditando("");
-        setEditandoSalario("");
-        setError(null);
-      } catch (err) {
-        console.error('Error al actualizar cargo:', err);
-        setError('Error al actualizar el cargo');
-      }
-    };
-
-    const handleNuevoCargoInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setNuevoCargo(e.target.value);
-    };
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-        <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl relative">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-bomberored-800 flex items-center gap-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-              Gestión de Cargos
-            </h2>
-            <button
-              className="text-gray-500 hover:text-bomberored-700 transition-colors"
-              onClick={() => setMostrarModalCargos(false)}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-6 h-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-
-          <form
-            className="flex flex-col md:flex-row gap-4 mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200"
-            onSubmit={() => {}}
-          >
-            <div className="flex-1">
-              <Label
-                htmlFor="nuevoCargo"
-                className="text-sm font-medium text-gray-700 mb-1 block"
-              >
-                Nuevo Cargo
-              </Label>
-              <input
-                id="nuevoCargo"
-                type="text"
-                placeholder="Ingrese el nombre del cargo"
-                value={nuevoCargo}
-                onChange={handleNuevoCargoInput}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
-                required
-                autoComplete="off"
-                spellCheck="false"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    document.getElementById("nuevoSalario")?.focus();
-                  }
-                }}
-              />
-            </div>
-            <div className="w-full md:w-48">
-              <Label
-                htmlFor="nuevoSalario"
-                className="text-sm font-medium text-gray-700 mb-1 block"
-              >
-                Salario
-              </Label>
-              <input
-                id="nuevoSalario"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="Salario"
-                value={nuevoSalario}
-                onChange={handleNuevoSalarioChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
-                required
-                autoComplete="off"
-                spellCheck="false"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                  }
-                }}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button
-                type="submit"
-                className="w-full md:w-auto bg-bomberored-700 hover:bg-bomberored-800"
-              >
-                Agregar Cargo
-              </Button>
-            </div>
-          </form>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-12 gap-4 font-bold text-sm text-gray-500 border-b border-gray-200 pb-2">
-              <div className="col-span-6">CARGO</div>
-              <div className="col-span-4">SALARIO</div>
-              <div className="col-span-2 text-center">ACCIONES</div>
-            </div>
-            {cargosState.map((cargo) => (
-              <div
-                key={cargo.id}
-                className="grid grid-cols-12 gap-4 items-center py-3 border-b border-gray-100"
-              >
-                <div className="col-span-6">
-                  {editandoCargo === cargo.nombre ? (
-                    <input
-                      type="text"
-                      value={valorEditando}
-                      onChange={(e) =>
-                        setValorEditando(e.target.value.toUpperCase())
-                      }
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
-                      autoComplete="off"
-                      spellCheck="false"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleGuardarEdicion(cargo.id);
-                        }
-                      }}
-                    />
-                  ) : (
-                    <span className="font-medium text-gray-900">
-                      {cargo.nombre}
-                    </span>
-                  )}
-                </div>
-                <div className="col-span-4">
-                  <span className="text-gray-900">
-                    $ {cargo.salario ? cargo.salario.toLocaleString() : "0"}
-                  </span>
-                </div>
-                <div className="col-span-2 flex items-center justify-end gap-2">
-                  {editandoCargo === cargo.nombre ? (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleGuardarEdicion(cargo.id)}
-                      >
-                        Guardar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setEditandoCargo(null);
-                          setValorEditando("");
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setEditandoCargo(cargo.nombre);
-                          setValorEditando(cargo.nombre);
-                        }}
-                      >
-                        Editar Nombre
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setEditandoSalario(cargo.salario.toString());
-                        }}
-                      >
-                        Editar Salario
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleGuardarEdicion(cargo.id)}
-                        disabled={cargo.nombre === cargoSeleccionado}
-                      >
-                        Eliminar
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // Modal de autenticación
   const ModalAuth = () => {
     useEffect(() => {
@@ -779,7 +906,14 @@ export default function ControlHorasExtras() {
       {tab === 'registro' && (
         <>
           {mostrarModalAuth && <ModalAuth />}
-          {mostrarModalCargos && <ModalGestionCargos />}
+          {mostrarModalCargos && (
+            <ModalGestionCargos
+              onClose={() => setMostrarModalCargos(false)}
+              cargos={cargosState}
+              fetchCargos={fetchCargos}
+              cargoSeleccionado={cargoSeleccionado}
+            />
+          )}
           {/* Selección de mes */}
           <section className="bg-white rounded-2xl shadow-md p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border border-gray-100">
             <div className="flex flex-col gap-2 w-fit">
@@ -957,7 +1091,14 @@ export default function ControlHorasExtras() {
       {tab === 'calculos' && (
         <>
           {mostrarModalAuth && <ModalAuth />}
-          {mostrarModalCargos && <ModalGestionCargos />}
+          {mostrarModalCargos && (
+            <ModalGestionCargos
+              onClose={() => setMostrarModalCargos(false)}
+              cargos={cargosState}
+              fetchCargos={fetchCargos}
+              cargoSeleccionado={cargoSeleccionado}
+            />
+          )}
           {/* Resumen y cálculos */}
           <section className="flex flex-col items-center gap-8 w-full">
             <div className="w-full flex flex-col md:flex-row gap-6">
@@ -987,7 +1128,7 @@ export default function ControlHorasExtras() {
                       <SelectValue placeholder="Seleccionar cargo" />
                     </SelectTrigger>
                     <SelectContent className="bg-white shadow-lg border border-gray-200 z-50">
-                      {cargosState.map((cargo) => (
+                      {Array.isArray(cargosState) && cargosState.map((cargo) => (
                         <SelectItem key={cargo.id} value={cargo.nombre || 'default'}>
                           {cargo.nombre}
                         </SelectItem>

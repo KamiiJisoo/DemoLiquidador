@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { obtenerAccesos, limpiarAccesos } from '@/lib/sqlite';
+import { obtenerAccesos, limpiarAccesos } from '@/lib/database';
 
 export async function POST() {
   try {
-    const accesos = obtenerAccesos();
+    const accesos = await obtenerAccesos();
     const total_accesos = accesos.length;
-    limpiarAccesos();
+    await limpiarAccesos();
     return NextResponse.json({ 
       success: true, 
       message: `Resumen creado`,

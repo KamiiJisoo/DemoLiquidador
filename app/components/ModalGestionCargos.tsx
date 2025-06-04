@@ -26,7 +26,26 @@ const ModalGestionCargos: React.FC<ModalGestionCargosProps> = ({ onClose }) => {
   const [nuevoSalarioInput, setNuevoSalarioInput] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to fetch cargos
+  const fetchCargos = async () => {
+    try {
+      const res = await fetch('/api/cargos');
+      const data = await res.json();
+      setCargos(data.cargos || []);
+      setError(null);
+    } catch (err) {
+      console.error('Error al obtener cargos:', err);
+      setError('Error al cargar los cargos');
+    }
+  };
+
+  // Fetch cargos on component mount
+  useEffect(() => {
+    fetchCargos();
+  }, []);
+
   const handleGuardarEdicion = async (cargoId: number): Promise<void> => {
+    console.log('Attempting to save edited cargo:', cargoId);
     try {
       if (!valorEditando.trim() || !editandoSalario) {
         setError('El nombre y salario son requeridos');
@@ -43,42 +62,26 @@ const ModalGestionCargos: React.FC<ModalGestionCargosProps> = ({ onClose }) => {
       });
 
       if (!res.ok) {
+        console.error('API Error Response:', res);
         throw new Error('Error al actualizar cargo');
       }
 
-      const cargosActualizados = cargos.map(cargo => 
-        cargo.id === cargoId 
-          ? { ...cargo, nombre: valorEditando, salario: Number(editandoSalario) }
-          : cargo
-      );
-      setCargos(cargosActualizados);
+      // Re-fetch cargos after successful update
+      fetchCargos();
       
       setEditandoCargo(null);
       setValorEditando("");
       setEditandoSalario("");
-      setError(null);
+      // No need to set error to null here, fetchCargos will handle it
     } catch (err) {
       console.error('Error al actualizar cargo:', err);
       setError('Error al actualizar el cargo');
     }
   };
 
-  useEffect(() => {
-    const cargarCargos = async () => {
-      try {
-        const res = await fetch('/api/cargos');
-        const data = await res.json();
-        setCargos(data.cargos || []);
-      } catch (err) {
-        console.error('Error al cargar cargos:', err);
-        setError('Error al cargar los cargos');
-      }
-    };
-    cargarCargos();
-  }, []);
-
   const handleSubmitCargo = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log('Attempting to submit new cargo:', { nombre: nuevoCargoInput, salario: nuevoSalarioInput });
     try {
       if (!nuevoCargoInput.trim() || !nuevoSalarioInput) {
         setError('El nombre y salario son requeridos');
@@ -95,32 +98,40 @@ const ModalGestionCargos: React.FC<ModalGestionCargosProps> = ({ onClose }) => {
       });
 
       if (!res.ok) {
-        throw new Error('Error al crear cargo');
+        // Attempt to read error message from response if available
+        console.error('API Error Response:', res);
+        const errorData = await res.json().catch(() => null);
+        const errorMessage = errorData?.error || 'Error al crear cargo';
+        throw new Error(errorMessage);
       }
 
-      const nuevoCargo = await res.json();
-      setCargos([...cargos, nuevoCargo]);
+      // Re-fetch cargos after successful add
+      fetchCargos();
+
       setNuevoCargoInput("");
       setNuevoSalarioInput("");
-      setError(null);
-    } catch (err) {
+      // No need to set error to null here, fetchCargos will handle it
+    } catch (err: any) {
       console.error('Error al agregar cargo:', err);
-      setError('Error al agregar el cargo');
+      setError(err.message || 'Error al agregar el cargo');
     }
   };
 
   const handleEliminarCargo = async (cargoId: number) => {
+    console.log('Attempting to delete cargo:', cargoId);
     try {
       const res = await fetch(`/api/cargos/${cargoId}`, { 
         method: 'DELETE' 
       });
 
       if (!res.ok) {
+        console.error('API Error Response:', res);
         throw new Error('Error al eliminar cargo');
       }
 
-      setCargos(cargos.filter(cargo => cargo.id !== cargoId));
-      setError(null);
+      // Re-fetch cargos after successful delete
+      fetchCargos();
+      // No need to set error to null here, fetchCargos will handle it
     } catch (err) {
       console.error('Error al eliminar cargo:', err);
       setError('Error al eliminar el cargo');
@@ -176,7 +187,7 @@ const ModalGestionCargos: React.FC<ModalGestionCargosProps> = ({ onClose }) => {
         </form>
 
         <div className="space-y-4">
-          {cargos.map((cargo) => (
+          {Array.isArray(cargos) && cargos.map((cargo) => (
             <Card key={cargo.id} className="p-4">
               {editandoCargo === cargo.id.toString() ? (
                 <div className="flex flex-col md:flex-row gap-4">
@@ -249,6 +260,7 @@ const ModalGestionCargos: React.FC<ModalGestionCargosProps> = ({ onClose }) => {
                     <Button
                       variant="destructive"
                       onClick={() => handleEliminarCargo(cargo.id)}
+                      disabled={false} // Enable delete button
                     >
                       Eliminar
                     </Button>
