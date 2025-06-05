@@ -917,10 +917,15 @@ export default function ControlHorasExtras() {
         console.log('Fetched raw data:', data); // Log datos crudos
         if (data && Array.isArray(data.festivos)) {
           // Formatear la fecha de cada festivo a "yyyy-MM-dd"
-          const formattedFestivos = data.festivos.map((f: { fecha: string | Date; nombre: string; tipo: 'FIJO' | 'MOVIL' }) => ({
-            ...f,
-            fecha: format(new Date(f.fecha), "yyyy-MM-dd")
-          }));
+          const formattedFestivos = data.festivos.map((f: { fecha: string | Date; nombre: string; tipo: 'FIJO' | 'MOVIL' }) => {
+            const dateObj = new Date(f.fecha); // Create Date object
+            const formattedDate = format(dateObj, "yyyy-MM-dd"); // Format to string
+            console.log(`Original date: ${f.fecha}, Date object: ${dateObj}, Formatted date: ${formattedDate}`); // Add this log
+            return {
+              ...f,
+              fecha: formattedDate
+            };
+          });
           setFetchedFestivosState(formattedFestivos);
           console.log('Fetched and formatted holidays:', formattedFestivos); // Add this line
           console.log('Holidays loaded successfully. Total:', formattedFestivos.length); // Log success and quantity
