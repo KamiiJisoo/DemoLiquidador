@@ -6,7 +6,6 @@ import { es } from "date-fns/locale"
 import { Calendar, Clock, AlertCircle, Lock } from "lucide-react"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
-import festivos from "@/data/festivos.json"
 import { createHash } from 'crypto'
 
 import { Button } from "@/components/ui/button"
@@ -498,6 +497,7 @@ export default function ControlHorasExtras() {
   const [password, setPassword] = useState("")
   const [errorAuth, setErrorAuth] = useState("")
   const passwordRef = useRef<HTMLInputElement>(null)
+  const [fetchedFestivosState, setFetchedFestivosState] = useState<any[]>([])
 
   useEffect(() => {
     console.log('Registering access...');
@@ -583,10 +583,9 @@ export default function ControlHorasExtras() {
   })()
 
   // Verificar si una fecha es festivo
-  const esDiaFestivo = (fecha: Date): boolean => {
+  const esDiaFestivo = (fecha: Date, fetchedFestivos: any[]): boolean => {
     const fechaStr = format(fecha, "yyyy-MM-dd")
-    const esDomingo = fecha.getDay() === 0
-    return esDomingo || festivos.some(f => f.fecha === fechaStr);
+    return fetchedFestivos.some(f => f.fecha === fechaStr);
   }
 
   // Obtener los días de la semana actual
@@ -602,7 +601,7 @@ export default function ControlHorasExtras() {
       const fecha = addDays(semana.inicio, i)
       dias.push(fecha)
       const fechaStr = format(fecha, "yyyy-MM-dd");
-      const isHoliday = esDiaFestivo(fecha);
+      const isHoliday = esDiaFestivo(fecha, fetchedFestivosState);
       console.log(`Date: ${fechaStr}, isHoliday: ${isHoliday}`); // Log si el día se identifica como festivo
     }
     return dias
@@ -619,7 +618,7 @@ export default function ControlHorasExtras() {
       const fecha = addDays(primerDia, i)
       const fechaStr = format(fecha, "yyyy-MM-dd")
       const isSunday = fecha.getDay() === 0;
-      const isHoliday = festivos.some(f => f.fecha === fechaStr);
+      const isHoliday = fetchedFestivosState.some(f => f.fecha === fechaStr);
 
       nuevoDiasMes[fechaStr] = {
         entrada1: "",
@@ -633,7 +632,7 @@ export default function ControlHorasExtras() {
     }
 
     setDiasMes(nuevoDiasMes)
-  }, [fechaInicio, festivos])
+  }, [fechaInicio, fetchedFestivosState])
 
   // Manejar cambio de cargo
   const handleCambiarCargo = (valor: string) => {
@@ -715,7 +714,7 @@ export default function ControlHorasExtras() {
     Object.entries(diasMes).forEach(([fecha, dia]) => {
       if (dia.total === "Error") return
       const fechaDate = parse(fecha, "yyyy-MM-dd", new Date())
-      const esFestivo = dia.isHoliday || dia.isSunday; // Considerar domingos como festivos para cálculo
+      const esFestivo = esDiaFestivo(fechaDate, fetchedFestivosState) || dia.isSunday;
       // Procesar ambos turnos
       const turnos = [
         { entrada: dia.entrada1, salida: dia.salida1 },
@@ -945,7 +944,7 @@ export default function ControlHorasExtras() {
             ...f,
             fecha: format(new Date(f.fecha), "yyyy-MM-dd")
           }));
-          setFestivos(formattedFestivos);
+          setFetchedFestivosState(formattedFestivos);
           console.log('Holidays loaded successfully. Total:', formattedFestivos.length); // Log éxito y cantidad
           console.log('Example holidays:', formattedFestivos.slice(0, 5)); // Log primeros 5
         } else {
