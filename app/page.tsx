@@ -192,7 +192,7 @@ const ModalGestionCargos = ({ onClose, cargos, fetchCargos, cargoSeleccionado }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl relative">
+      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-3xl relative">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-bomberored-800 flex items-center gap-2">
             <svg
@@ -306,123 +306,130 @@ const ModalGestionCargos = ({ onClose, cargos, fetchCargos, cargoSeleccionado }:
 
         <div className="space-y-4">
           <div className="grid grid-cols-12 gap-4 font-bold text-sm text-gray-500 border-b border-gray-200 pb-2">
-            <div className="col-span-6">CARGO</div>
-            <div className="col-span-4">SALARIO</div>
-            <div className="col-span-2 text-center">ACCIONES</div>
+            <div className="col-span-4">CARGO</div>
+            <div className="col-span-3">SALARIO</div>
+            <div className="col-span-5 text-center">ACCIONES</div>
           </div>
-          {Array.isArray(cargos) && cargos.map((cargo) => (
-            <div
-              key={cargo.id}
-              className="grid grid-cols-12 gap-4 items-center py-3 border-b border-gray-100"
-            >
-              <div className="col-span-6">
-                {editandoCargo === cargo.id.toString() ? (
-                  <input
-                    type="text"
-                    value={valorEditando}
-                    onChange={(e) =>
-                      setValorEditando(e.target.value.toUpperCase())
-                    }
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
-                    autoComplete="off"
-                    spellCheck="false"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleGuardarEdicion(cargo.id);
+          {Array.isArray(cargos) && cargos.map((cargo) => {
+            console.log('Rendering cargo:', cargo);
+            return (
+              <div
+                key={cargo.id}
+                className="grid grid-cols-12 gap-4 items-center py-3 border-b border-gray-100"
+              >
+                <div className="col-span-4">
+                  {editandoCargo === cargo.id.toString() ? (
+                    <input
+                      type="text"
+                      value={valorEditando}
+                      onChange={(e) =>
+                        setValorEditando(e.target.value.toUpperCase())
                       }
-                    }}
-                  />
-                ) : (
-                  <span className="font-medium text-gray-900">
-                    {cargo.nombre}
-                  </span>
-                )}
-              </div>
-              <div className="col-span-4">
-                {editandoCargo === cargo.id.toString() ? (
-                   <input
-                     type="text"
-                     inputMode="numeric"
-                     pattern="[0-9]*"
-                     value={editandoSalario}
-                     onChange={(e) => setEditandoSalario(e.target.value.replace(/[^0-9]/g, ''))}
-                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
-                     autoComplete="off"
-                     spellCheck="false"
-                     onKeyDown={(e) => {
-                       if (e.key === "Enter") {
-                         e.preventDefault();
-                         handleGuardarEdicion(cargo.id);
-                       }
-                     }}
-                   />
-                ) : (
-                  <span className="text-gray-900">
-                    $ {cargo.salario ? cargo.salario.toLocaleString() : "0"}
-                  </span>
-                )}
-              </div>
-              <div className="col-span-2 flex items-center justify-end gap-2">
-                {editandoCargo === cargo.id.toString() ? (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleGuardarEdicion(cargo.id)}
-                    >
-                      Guardar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setEditandoCargo(null);
-                        setValorEditando("");
-                        setEditandoSalario("");
-                        setError(null);
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
+                      autoComplete="off"
+                      spellCheck="false"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleGuardarEdicion(cargo.id);
+                        }
                       }}
-                    >
-                      Cancelar
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setEditandoCargo(cargo.id.toString());
-                        setValorEditando(cargo.nombre);
-                      }}
-                    >
-                      Editar Nombre
-                    </Button>
-                     <Button
-                       size="sm"
-                       variant="outline"
-                       onClick={() => {
-                         setEditandoSalario(cargo.salario.toString());
+                    />
+                  ) : (
+                    <span className="font-medium text-gray-900">
+                      {cargo.nombre}
+                    </span>
+                  )}
+                </div>
+                <div className="col-span-3 flex items-center relative">
+                  {editandoCargo === cargo.id.toString() ? (
+                     <input
+                       type="text"
+                       inputMode="numeric"
+                       pattern="[0-9]*"
+                       value={editandoSalario}
+                       onChange={(e) => setEditandoSalario(e.target.value.replace(/[^0-9]/g, ''))}
+                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-bomberored-700"
+                       autoComplete="off"
+                       spellCheck="false"
+                       onKeyDown={(e) => {
+                         if (e.key === "Enter") {
+                           e.preventDefault();
+                           handleGuardarEdicion(cargo.id);
+                         }
                        }}
-                     >
-                       Editar Salario
-                     </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => {
-                        handleEliminarCargo(cargo.id);
-                      }}
-                      disabled={cargo.nombre === cargoSeleccionado}
-                    >
-                      Eliminar
-                    </Button>
-                  </>
-                )}
+                     />
+                  ) : (
+                    <div className="text-gray-900 overflow-hidden text-ellipsis">
+                      $ {cargo.salario ? cargo.salario.toLocaleString() : "0"}
+                    </div>
+                  )}
+                </div>
+                <div className="col-span-5 flex items-center justify-end gap-2">
+                  {editandoCargo === cargo.id.toString() ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleGuardarEdicion(cargo.id)}
+                      >
+                        Guardar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditandoCargo(null);
+                          setValorEditando("");
+                          setEditandoSalario("");
+                          setError(null);
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditandoCargo(cargo.id.toString());
+                          setValorEditando(cargo.nombre);
+                          // Reset salario editing when editing name
+                          setEditandoSalario("");
+                        }}
+                      >
+                        Editar Nombre
+                      </Button>
+                       <Button
+                         size="sm"
+                         variant="outline"
+                         onClick={() => {
+                           setEditandoCargo(cargo.id.toString());
+                           setValorEditando(cargo.nombre);
+                           setEditandoSalario(cargo.salario.toString());
+                         }}
+                       >
+                         Editar Salario
+                       </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          handleEliminarCargo(cargo.id);
+                        }}
+                        disabled={cargo.nombre === cargoSeleccionado}
+                      >
+                        Eliminar
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -1186,7 +1193,7 @@ export default function ControlHorasExtras() {
                 </div>
                 <div>
                   <div className="text-xs text-gray-500 font-bold mb-1">Salario mensual</div>
-                  <div className="text-2xl font-bold text-black">$ {salarioMensual.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-black">$ {salarioMensual.toLocaleString('es-CO')}</div>
                 </div>
                 <Button
                   id="btn-gestionar-cargos"
