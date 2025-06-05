@@ -922,8 +922,8 @@ export default function ControlHorasExtras() {
             fecha: format(new Date(f.fecha), "yyyy-MM-dd")
           }));
           setFetchedFestivosState(formattedFestivos);
-          console.log('Holidays loaded successfully. Total:', formattedFestivos.length); // Log éxito y cantidad
-          console.log('Example holidays:', formattedFestivos.slice(0, 5)); // Log primeros 5
+          console.log('Fetched and formatted holidays:', formattedFestivos); // Add this line
+          console.log('Holidays loaded successfully. Total:', formattedFestivos.length); // Log success and quantity
         } else {
           console.error('Fetched data does not contain a festivos array or is not an array:', data); // Log error en formato
           setFestivos([]);
