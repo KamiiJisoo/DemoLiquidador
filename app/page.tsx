@@ -918,9 +918,10 @@ export default function ControlHorasExtras() {
         if (data && Array.isArray(data.festivos)) {
           // Formatear la fecha de cada festivo a "yyyy-MM-dd"
           const formattedFestivos = data.festivos.map((f: { fecha: string | Date; nombre: string; tipo: 'FIJO' | 'MOVIL' }) => {
-            const dateObj = new Date(f.fecha); // Create Date object
+            // Use parse to correctly interpret the date string in the local timezone
+            const dateObj = parse(f.fecha as string, "yyyy-MM-dd", new Date()); 
             const formattedDate = format(dateObj, "yyyy-MM-dd"); // Format to string
-            console.log(`Original date: ${f.fecha}, Date object: ${dateObj}, Formatted date: ${formattedDate}`); // Add this log
+            console.log(`Original date: ${f.fecha}, Date object (parsed): ${dateObj}, Formatted date: ${formattedDate}`); // Update log
             return {
               ...f,
               fecha: formattedDate
