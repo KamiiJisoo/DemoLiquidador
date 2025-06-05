@@ -19,28 +19,6 @@ type AñoFestivo = "2024" | "2025" | "2026" | "2027" | "2028" | "2029" | "2030" 
 
 type Festivos = Record<AñoFestivo, string[]>
 
-// Lista de días festivos en Colombia 2024 (ejemplo)
-const diasFestivos2024 = [
-  "2024-01-01", // Año Nuevo
-  "2024-01-08", // Día de los Reyes Magos
-  "2024-03-25", // Día de San José
-  "2024-03-28", // Jueves Santo
-  "2024-03-29", // Viernes Santo
-  "2024-05-01", // Día del Trabajo
-  "2024-05-13", // Día de la Ascensión
-  "2024-06-03", // Corpus Christi
-  "2024-06-10", // Sagrado Corazón
-  "2024-07-01", // San Pedro y San Pablo
-  "2024-07-20", // Día de la Independencia
-  "2024-08-07", // Batalla de Boyacá
-  "2024-08-19", // Asunción de la Virgen
-  "2024-10-14", // Día de la Raza
-  "2024-11-04", // Todos los Santos
-  "2024-11-11", // Independencia de Cartagena
-  "2024-12-08", // Día de la Inmaculada Concepción
-  "2024-12-25", // Navidad
-]
-
 // Interfaz para los datos de un día
 interface DiaData {
   entrada1: string
@@ -601,8 +579,8 @@ export default function ControlHorasExtras() {
       const fecha = addDays(semana.inicio, i)
       dias.push(fecha)
       const fechaStr = format(fecha, "yyyy-MM-dd");
-      const isHoliday = esDiaFestivo(fecha, fetchedFestivosState);
-      console.log(`Date: ${fechaStr}, isHoliday: ${isHoliday}`); // Log si el día se identifica como festivo
+      const esFestivo = esDiaFestivo(fecha, fetchedFestivosState);
+      console.log(`Date: ${fechaStr}, isHoliday: ${esFestivo}`); // Log si el día se identifica como festivo
     }
     return dias
   })()
@@ -617,8 +595,7 @@ export default function ControlHorasExtras() {
     for (let i = 0; i < diasEnMes; i++) {
       const fecha = addDays(primerDia, i)
       const fechaStr = format(fecha, "yyyy-MM-dd")
-      const isSunday = fecha.getDay() === 0;
-      const isHoliday = fetchedFestivosState.some(f => f.fecha === fechaStr);
+      const isHoliday = esDiaFestivo(fecha, fetchedFestivosState);
 
       nuevoDiasMes[fechaStr] = {
         entrada1: "",
@@ -627,7 +604,7 @@ export default function ControlHorasExtras() {
         salida2: "",
         total: "",
         isHoliday: isHoliday,
-        isSunday: isSunday,
+        isSunday: fecha.getDay() === 0,
       }
     }
 
@@ -714,7 +691,7 @@ export default function ControlHorasExtras() {
     Object.entries(diasMes).forEach(([fecha, dia]) => {
       if (dia.total === "Error") return
       const fechaDate = parse(fecha, "yyyy-MM-dd", new Date())
-      const esFestivo = esDiaFestivo(fechaDate, fetchedFestivosState) || dia.isSunday;
+      const esFestivo = esDiaFestivo(fechaDate, fetchedFestivosState);
       // Procesar ambos turnos
       const turnos = [
         { entrada: dia.entrada1, salida: dia.salida1 },
