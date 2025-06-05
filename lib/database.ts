@@ -1,196 +1,183 @@
-import mysql from 'mysql2/promise';
-import path from 'path';
-import fs from 'fs';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// MySQL Connection Pool
-let pool: mysql.Pool;
+// Supabase Client
+let supabase: SupabaseClient | null = null;
 
-async function connectToDatabase() {
-  if (pool) {
-    return pool;
-  }
+export function getSupabaseClient(): SupabaseClient {
+  if (!supabase) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  try {
-    pool = await mysql.createPool({
-      host: 'localhost',
-      user: 'root',
-      password: '',
-      database: 'liquidador_bomberos',
-      multipleStatements: true,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    });
-
-    // Check connection
-    const connection = await pool.getConnection();
-    console.log('Connected to MySQL database');
-    connection.release();
-
-    // Create tables if they don't exist (MySQL syntax)
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS accesos (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        ip VARCHAR(255) NOT NULL,
-        fecha VARCHAR(255) NOT NULL
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS cargos (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        nombre VARCHAR(255) NOT NULL UNIQUE,
-        salario INT NOT NULL
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS festivos (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        fecha DATE NOT NULL UNIQUE,
-        nombre VARCHAR(255) NOT NULL,
-        tipo ENUM('FIJO', 'MOVIL') NOT NULL
-      );
-    `);
-
-    // Insert predefinidos if table is empty
-    const [rows]: any = await pool.execute('SELECT COUNT(*) as count FROM cargos');
-    const result = rows[0];
-    if (result.count === 0) {
-      const cargosPredefinidos = [
-        { nombre: 'BOMBERO', salario: 2054865 },
-        { nombre: 'CABO DE BOMBERO', salario: 2197821 },
-        { nombre: 'SARGENTO DE BOMBERO', salario: 2269299 },
-        { nombre: 'TENIENTE DE BOMBERO', salario: 2510541 }
-      ];
-
-      const insertQuery = 'INSERT INTO cargos (nombre, salario) VALUES (?, ?)';
-      for (const cargo of cargosPredefinidos) {
-        await pool.execute(insertQuery, [cargo.nombre, cargo.salario]);
-      }
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Supabase URL and Anon Key must be provided in .env.local');
+      // Or throw an error, depending on desired behavior
+      throw new Error('Supabase URL and Anon Key must be provided in .env.local');
     }
-
-    return pool;
-  } catch (error) {
-    console.error('Error connecting to database:', error);
-    throw error;
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
   }
+  return supabase;
 }
 
-// Funciones de utilidad para MySQL
+// Funciones de utilidad para Supabase
 export async function registrarAcceso(ip: string) {
-  const pool = await connectToDatabase();
-  const fecha = new Date().toISOString();
-  console.log('Executing INSERT query for registrarAcceso...', { ip, fecha });
-  try {
-    const [result]: any = await pool.execute('INSERT INTO accesos (ip, fecha) VALUES (?, ?)', [ip, fecha]);
-    console.log('INSERT query successful for registrarAcceso. Affected rows:', result.affectedRows);
-  } catch (error: any) {
-    console.error('Error executing INSERT query in registrarAcceso:', error);
-    console.error('Error details:', error.message, error.code, error.sqlMessage);
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('accesos')
+    .insert([{ ip: ip, fecha: new Date().toISOString() }]);
+  
+  if (error) {
+    console.error('Error al registrar acceso:', error);
     throw error;
   }
+  console.log('Acceso registrado exitosamente:', data);
 }
 
 export async function obtenerAccesos() {
-  const pool = await connectToDatabase();
-  const [rows]: any = await pool.execute('SELECT * FROM accesos');
-  return rows;
-}
-
-export async function limpiarAccesos() {
-  const pool = await connectToDatabase();
-  await pool.execute('DELETE FROM accesos');
-}
-
-export async function agregarCargo(nombre: string, salario: number) {
-  const pool = await connectToDatabase();
-  console.log('Executing INSERT query for agregarCargo...', { nombre, salario });
-  try {
-    const [result]: any = await pool.execute('INSERT INTO cargos (nombre, salario) VALUES (?, ?)', [nombre, salario]);
-    console.log('INSERT query successful for agregarCargo. Affected rows:', result.affectedRows);
-  } catch (error) {
-    console.error('Error executing INSERT query in agregarCargo:', error);
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('accesos')
+    .select('*');
+  
+  if (error) {
+    console.error('Error al obtener accesos:', error);
     throw error;
   }
-}
-
-export async function obtenerCargos() {
-  const pool = await connectToDatabase();
-  const [rows]: any = await pool.execute('SELECT * FROM cargos');
-  return rows;
-}
-
-export async function actualizarCargo(id: number, nombre: string, salario: number) {
-  const pool = await connectToDatabase();
-  console.log('Executing UPDATE query for actualizarCargo...', { id, nombre, salario });
-  try {
-    const [result]: any = await pool.execute('UPDATE cargos SET nombre = ?, salario = ? WHERE id = ?', [nombre, salario, id]);
-    console.log('UPDATE query successful for actualizarCargo. Affected rows:', result.affectedRows);
-  } catch (error) {
-    console.error('Error executing UPDATE query in actualizarCargo:', error);
-    throw error;
-  }
-}
-
-export async function eliminarCargo(id: number) {
-  const pool = await connectToDatabase();
-  console.log('Executing DELETE query for eliminarCargo...', { id });
-  try {
-    const [result]: any = await pool.execute('DELETE FROM cargos WHERE id = ?', [id]);
-    console.log('DELETE query successful for eliminarCargo. Affected rows:', result.affectedRows);
-  } catch (error) {
-    console.error('Error executing DELETE query in eliminarCargo:', error);
-    throw error;
-  }
-}
-
-export async function exportarBaseDeDatos() {
-  const accesos = await obtenerAccesos();
-  const cargos = await obtenerCargos();
-  const data = { accesos, cargos };
-  fs.writeFileSync(path.join(process.cwd(), 'db_export.json'), JSON.stringify(data, null, 2));
   return data;
 }
 
+export async function limpiarAccesos() {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('accesos')
+    .delete()
+    .neq('id', '0'); // Delete all rows (assuming 'id' is never '0')
+  
+  if (error) {
+    console.error('Error al limpiar accesos:', error);
+    throw error;
+  }
+  console.log('Accesos limpiados exitosamente');
+}
+
+export async function agregarCargo(nombre: string, salario: number) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('cargos')
+    .insert([{ nombre: nombre, salario: salario }]);
+
+  if (error) {
+    console.error('Error al agregar cargo:', error);
+    throw error;
+  }
+  console.log('Cargo agregado exitosamente:', data);
+}
+
+export async function obtenerCargos() {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('cargos')
+    .select('*');
+
+  if (error) {
+    console.error('Error al obtener cargos:', error);
+    throw error;
+  }
+  return data;
+}
+
+export async function actualizarCargo(id: number, nombre: string, salario: number) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('cargos')
+    .update({ nombre: nombre, salario: salario })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error al actualizar cargo:', error);
+    throw error;
+  }
+  console.log('Cargo actualizado exitosamente:', data);
+}
+
+export async function eliminarCargo(id: number) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('cargos')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error al eliminar cargo:', error);
+    throw error;
+  }
+  console.log('Cargo eliminado exitosamente:', data);
+}
+
+// Esta función de exportar base de datos ya no es necesaria de la misma forma con Supabase
+// Puedes usar las herramientas de exportación de Supabase si necesitas exportar datos
+/*
+export async function exportarBaseDeDatos() {
+  // ... (implementación anterior para MySQL)
+}
+*/
+
 export async function agregarFestivo(fecha: string, nombre: string, tipo: 'FIJO' | 'MOVIL') {
-  const pool = await connectToDatabase();
-  try {
-    const [result]: any = await pool.execute(
-      'INSERT INTO festivos (fecha, nombre, tipo) VALUES (?, ?, ?)',
-      [fecha, nombre, tipo]
-    );
-    return result;
-  } catch (error) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('festivos')
+    .insert([{ fecha: fecha, nombre: nombre, tipo: tipo }]);
+
+  if (error) {
     console.error('Error al agregar festivo:', error);
     throw error;
   }
+  console.log('Festivo agregado exitosamente:', data);
 }
 
 export async function obtenerFestivos() {
-  const pool = await connectToDatabase();
-  const [rows]: any = await pool.execute('SELECT * FROM festivos ORDER BY fecha');
-  return rows;
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('festivos')
+    .select('*')
+    .order('fecha', { ascending: true });
+
+  if (error) {
+    console.error('Error al obtener festivos:', error);
+    throw error;
+  }
+  return data;
 }
 
 export async function obtenerFestivosPorAño(año: number) {
-  const pool = await connectToDatabase();
-  const [rows]: any = await pool.execute(
-    'SELECT * FROM festivos WHERE YEAR(fecha) = ? ORDER BY fecha',
-    [año]
-  );
-  return rows;
+  const supabase = getSupabaseClient();
+  // En PostgreSQL (Supabase), usamos EXTRACT para obtener el año de una fecha
+  const { data, error } = await supabase
+    .from('festivos')
+    .select('*')
+    .filter('fecha', 'gte', `${año}-01-01`)
+    .filter('fecha', 'lte', `${año}-12-31`)
+    .order('fecha', { ascending: true });
+
+  if (error) {
+    console.error('Error al obtener festivos por año:', error);
+    throw error;
+  }
+  return data;
 }
 
 export async function eliminarFestivo(fecha: string) {
-  const pool = await connectToDatabase();
-  try {
-    const [result]: any = await pool.execute('DELETE FROM festivos WHERE fecha = ?', [fecha]);
-    return result;
-  } catch (error) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('festivos')
+    .delete()
+    .eq('fecha', fecha);
+
+  if (error) {
     console.error('Error al eliminar festivo:', error);
     throw error;
   }
+  console.log('Festivo eliminado exitosamente:', data);
 }
 
-export { connectToDatabase }; 
+// La función connectToDatabase ya no es necesaria de la misma forma con Supabase
+// export { connectToDatabase }; 
