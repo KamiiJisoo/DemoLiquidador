@@ -1,4 +1,5 @@
-import { agregarFestivo, connectToDatabase } from '../lib/database';
+import { agregarFestivo, getSupabaseClient } from '../lib/database';
+// import { agregarFestivo, connectToDatabase } from '../lib/database'; // connectToDatabase is deprecated
 
 // Festivos fijos (día y mes siempre igual)
 const festivosFijos = [
@@ -59,19 +60,37 @@ function trasladarALunes(fecha: Date): Date {
 }
 
 // Función para verificar si una fecha ya existe
-async function fechaExiste(pool: any, fecha: string): Promise<boolean> {
-  const [rows]: any = await pool.execute('SELECT COUNT(*) as count FROM festivos WHERE fecha = ?', [fecha]);
-  return rows[0].count > 0;
+async function fechaExiste(supabase: any, fecha: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('festivos')
+    .select('count', { count: 'exact' })
+    .eq('fecha', fecha);
+
+  if (error) {
+    console.error('Error al verificar existencia de festivo:', error);
+    throw error; // Propagate the error
+  }
+
+  return count !== null && count > 0;
 }
 
 async function main() {
   try {
-    console.log('Conectando a la base de datos...');
-    const pool = await connectToDatabase();
+    console.log('Conectando a la base de datos (usando Supabase client)...');
+    const supabase = getSupabaseClient();
     
     console.log('Eliminando festivos existentes...');
-    await pool.execute('DELETE FROM festivos');
-    console.log('Festivos existentes eliminados.');
+    // Supabase delete to remove all rows (adjust RLS policy if needed)
+    const { error: deleteError } = await supabase
+      .from('festivos')
+      .delete()
+      .neq('fecha', 'a non-existent date value'); // Use a condition that matches no rows to delete all
+
+    if (deleteError) {
+      console.error('Error al limpiar la tabla de festivos:', deleteError);
+      throw deleteError;
+    }
+    console.log('Tabla de festivos limpiada exitosamente');
 
     let totalFestivos = 0;
     let festivosDuplicados = 0;
@@ -82,7 +101,7 @@ async function main() {
       // Fijos
       for (const festivo of festivosFijos) {
         const fecha = `${year}-${String(festivo.mes).padStart(2, '0')}-${String(festivo.dia).padStart(2, '0')}`;
-        if (!(await fechaExiste(pool, fecha))) {
+        if (!(await fechaExiste(supabase, fecha))) {
           await agregarFestivo(fecha, festivo.nombre, 'FIJO');
           totalFestivos++;
         } else {
@@ -96,7 +115,7 @@ async function main() {
         const fechaOriginal = new Date(year, festivo.mes - 1, festivo.dia);
         const fechaLunes = trasladarALunes(fechaOriginal);
         const fecha = `${fechaLunes.getFullYear()}-${String(fechaLunes.getMonth() + 1).padStart(2, '0')}-${String(fechaLunes.getDate()).padStart(2, '0')}`;
-        if (!(await fechaExiste(pool, fecha))) {
+        if (!(await fechaExiste(supabase, fecha))) {
           await agregarFestivo(fecha, festivo.nombre, 'MOVIL');
           totalFestivos++;
         } else {
@@ -113,7 +132,7 @@ async function main() {
         fechaBase.setDate(fechaBase.getDate() + festivo.offset);
         let fechaFinal = festivo.emiliani ? trasladarALunes(fechaBase) : fechaBase;
         const fecha = `${fechaFinal.getFullYear()}-${String(fechaFinal.getMonth() + 1).padStart(2, '0')}-${String(fechaFinal.getDate()).padStart(2, '0')}`;
-        if (!(await fechaExiste(pool, fecha))) {
+        if (!(await fechaExiste(supabase, fecha))) {
           await agregarFestivo(fecha, festivo.nombre, 'MOVIL');
           totalFestivos++;
         } else {
@@ -130,8 +149,15 @@ async function main() {
     
     // Verificar algunos festivos importantes
     console.log('\nVerificando algunos festivos importantes:');
-    const [rows]: any = await pool.execute('SELECT * FROM festivos WHERE fecha IN (?, ?, ?)', 
-      ['2025-06-02', '2024-03-28', '2024-03-29']);
+    const { data: rows, error: selectError }: { data: any[] | null, error: any } = await supabase
+      .from('festivos')
+      .select('*')
+      .in('fecha', ['2025-06-02', '2024-03-28', '2024-03-29']);
+
+    if (selectError) {
+      console.error('Error al verificar festivos importantes:', selectError);
+      throw selectError;
+    }
     console.log('Festivos verificados:', rows);
 
   } catch (error) {
