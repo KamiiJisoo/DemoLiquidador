@@ -1182,20 +1182,20 @@ export default function ControlHorasExtras() {
           {/* Resumen y cálculos */}
           <section className="flex flex-col items-center gap-8 w-full">
             <div className="w-full flex flex-col md:flex-row gap-6">
-              <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col gap-2 min-w-[260px]">
+              <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col gap-2 min-w-[400px] md:min-w-[500px]">
                 <div className="uppercase text-gray-500 font-bold text-sm mb-2">Total trabajo mensual</div>
-                <div className="flex flex-row gap-8 justify-between">
+                <div className="flex flex-row gap-4 justify-between">
                   <div>
                     <div className="text-xs text-gray-500 font-bold">Tiempo total</div>
                     <div className="text-2xl font-bold text-black">{formatTime(totalHorasMes)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 font-bold">Recargos</div>
-                    <div className="text-2xl font-bold text-red-500">${formatNumberWithSpace(totalRecargos)}</div>
+                    <div className="text-2xl font-bold text-red-500 whitespace-nowrap">${formatNumberWithSpace(totalRecargos)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 font-bold">Horas Extras</div>
-                    <div className="text-2xl font-bold text-red-500">${formatNumberWithSpace(totalHorasExtras)}</div>
+                    <div className="text-2xl font-bold text-red-500 whitespace-nowrap">${formatNumberWithSpace(totalHorasExtras)}</div>
                   </div>
                 </div>
               </div>
@@ -1240,7 +1240,7 @@ export default function ControlHorasExtras() {
                 <div className="uppercase text-gray-500 font-bold text-sm mb-2">Resumen</div>
                 <div className="flex flex-row gap-8 justify-between">
                   <div>
-                    <div className="text-xs text-gray-500 font-bold">Total a pagar</div>
+                    <div className="text-xs text-gray-500 font-bold">Total recargos y horas extras</div>
                     <div className="text-2xl font-bold text-red-500">${formatNumberWithSpace(totalAPagar)}</div>
                   </div>
                   <div>
@@ -1303,7 +1303,7 @@ export default function ControlHorasExtras() {
             </section>
             {/* Resumen final */}
             <div className="w-full text-right mt-4 font-bold text-lg">
-              Total a pagar: <span className="text-bomberored-800">${formatNumberWithSpace(totalAPagar)}</span>
+              Total recargos y horas extras: <span className="text-bomberored-800">${formatNumberWithSpace(totalAPagar)}</span>
             </div>
             {topeFecha && topeHora && (
               <div className="w-full text-right mt-2 font-medium text-base text-gray-700">
