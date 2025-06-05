@@ -692,6 +692,7 @@ export default function ControlHorasExtras() {
       if (dia.total === "Error") return
       const fechaDate = parse(fecha, "yyyy-MM-dd", new Date())
       const esFestivo = esDiaFestivo(fechaDate, fetchedFestivosState);
+      const esFestivoODomingo = esFestivo || dia.isSunday; // Combine holiday and Sunday check
       // Procesar ambos turnos
       const turnos = [
         { entrada: dia.entrada1, salida: dia.salida1 },
@@ -713,16 +714,16 @@ export default function ControlHorasExtras() {
 
           if (totalMinutos <= 190 * 60) {
             // RECARGOS
-            if (!esFestivo && esNocturno) recNocturno++ // L-S (18:00-06:00) 35%
-            if (esFestivo && esNocturno) recDomNoct++   // Dom/fest (18:00-06:00) 235%
-            if (esFestivo && esDiurno) recDomDia++      // Dom/fest (06:00-18:00) 200%
+            if (!esFestivoODomingo && esNocturno) recNocturno++ // L-S (18:00-06:00) 35%
+            if (esFestivoODomingo && esNocturno) recDomNoct++   // Dom/fest (18:00-06:00) 235%
+            if (esFestivoODomingo && esDiurno) recDomDia++      // Dom/fest (06:00-18:00) 200%
           } else {
             // HORAS EXTRAS
             let valorEsteMinuto = 0
-            if (!esFestivo && esDiurno) { extDia++; valorEsteMinuto = valorMinuto * 1.25 } // L-S (06:00-18:00) 125%
-            if (!esFestivo && esNocturno) { extNoct++; valorEsteMinuto = valorMinuto * 1.75 } // L-S (18:00-06:00) 175%
-            if (esFestivo && esDiurno) { extDomDia++; valorEsteMinuto = valorMinuto * 2.25 } // Dom/fest (06:00-18:00) 225%
-            if (esFestivo && esNocturno) { extDomNoct++; valorEsteMinuto = valorMinuto * 2.75 } // Dom/fest (18:00-06:00) 275%
+            if (!esFestivoODomingo && esDiurno) { extDia++; valorEsteMinuto = valorMinuto * 1.25 } // L-S (06:00-18:00) 125%
+            if (!esFestivoODomingo && esNocturno) { extNoct++; valorEsteMinuto = valorMinuto * 1.75 } // L-S (18:00-06:00) 175%
+            if (esFestivoODomingo && esDiurno) { extDomDia++; valorEsteMinuto = valorMinuto * 2.25 } // Dom/fest (06:00-18:00) 225%
+            if (esFestivoODomingo && esNocturno) { extDomNoct++; valorEsteMinuto = valorMinuto * 2.75 } // Dom/fest (18:00-06:00) 275%
             if (dineroExtrasAcumulado < topeMaximo) {
               dineroExtrasAcumulado += valorEsteMinuto
               if (dineroExtrasAcumulado >= topeMaximo && !topeAlcanzado) {
@@ -1133,6 +1134,10 @@ export default function ControlHorasExtras() {
                           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F44E4E] text-white font-bold text-sm">
                             <AlertCircle className="w-4 h-4" />
                             Festivo
+                          </span>
+                        ) : dia.isSunday ? (
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500 text-white font-bold text-sm">
+                            Domingo
                           </span>
                         ) : null}
                       </div>
