@@ -77,6 +77,31 @@ interface EventTarget {
 // Utilidad para validar hora en formato HH:mm
 const esHoraValida = (valor: string) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(valor)
 
+// Function to format number with space as thousands separator and period as decimal
+const formatNumberWithSpace = (value: number | string | undefined | null): string => {
+  if (value === undefined || value === null) {
+    return "0";
+  }
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) {
+      return "0";
+  }
+  // Use toLocaleString with a locale that uses a comma for decimal and then replace
+  // the comma with a period and the thousands separator (which is a period in many locales) with a space.
+  // This might not be the most robust for all locales, but works for the requested format.
+  // A more robust solution would involve manual string manipulation based on regex.
+  // Let's try a simple approach first. Using 'en-US' which uses comma for thousands and period for decimal.
+  // Then swap them. This is still not ideal.
+  // Let's stick to es-CO and manually replace. es-CO uses '.' for thousands and ',' for decimals
+  // So we want to replace '.' with ' ' and ',' with '.'
+
+  const parts = num.toFixed(2).split('.'); // Split by the default decimal separator
+  const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' '); // Add space as thousands separator
+  const decimalPart = parts[1];
+
+  return `${integerPart}.${decimalPart}`; // Join with period as decimal separator
+};
+
 // Modal de gestión de cargos
 const ModalGestionCargos = ({ onClose, cargos, fetchCargos, cargoSeleccionado }: { onClose: () => void; cargos: Array<{ id: number; nombre: string; salario: number }>; fetchCargos: () => Promise<void>; cargoSeleccionado: string }) => {
   const [editandoCargo, setEditandoCargo] = useState<string | null>(null);
@@ -362,7 +387,7 @@ const ModalGestionCargos = ({ onClose, cargos, fetchCargos, cargoSeleccionado }:
                      />
                   ) : (
                     <div className="text-gray-900 overflow-hidden text-ellipsis">
-                      $ {cargo.salario ? cargo.salario.toLocaleString() : "0"}
+                      $ {cargo.salario ? formatNumberWithSpace(cargo.salario) : "0.00"}
                     </div>
                   )}
                 </div>
@@ -1166,11 +1191,11 @@ export default function ControlHorasExtras() {
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 font-bold">Recargos</div>
-                    <div className="text-2xl font-bold text-red-500">${totalRecargos.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-red-500">${formatNumberWithSpace(totalRecargos)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 font-bold">Horas Extras</div>
-                    <div className="text-2xl font-bold text-red-500">${totalHorasExtras.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-red-500">${formatNumberWithSpace(totalHorasExtras)}</div>
                   </div>
                 </div>
               </div>
@@ -1193,7 +1218,7 @@ export default function ControlHorasExtras() {
                 </div>
                 <div>
                   <div className="text-xs text-gray-500 font-bold mb-1">Salario mensual</div>
-                  <div className="text-2xl font-bold text-black">$ {salarioMensual.toLocaleString('es-CO')}</div>
+                  <div className="text-2xl font-bold text-black">$ {formatNumberWithSpace(salarioMensual)}</div>
                 </div>
                 <Button
                   id="btn-gestionar-cargos"
@@ -1216,7 +1241,7 @@ export default function ControlHorasExtras() {
                 <div className="flex flex-row gap-8 justify-between">
                   <div>
                     <div className="text-xs text-gray-500 font-bold">Total a pagar</div>
-                    <div className="text-2xl font-bold text-red-500">${totalAPagar.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-red-500">${formatNumberWithSpace(totalAPagar)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 font-bold">Tiempo compensatorio</div>
@@ -1238,18 +1263,18 @@ export default function ControlHorasExtras() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Nocturnas L-V</span>
-                    <span>{formatTime(calculoHoras.horasNocturnasLV)} <span className="text-gray-400">(${valorRecargoNocturnoLV.toLocaleString(undefined, {maximumFractionDigits: 0})})</span></span>
+                    <span>{formatTime(calculoHoras.horasNocturnasLV)} <span className="text-gray-400">(${formatNumberWithSpace(valorRecargoNocturnoLV)})</span></span>
                   </div>
                   <div className="flex justify-between">
                     <span>Diurnas Festivo</span>
-                    <span>{formatTime(calculoHoras.horasDiurnasFestivos)} <span className="text-gray-400">(${valorRecargoDiurnoFestivo.toLocaleString(undefined, {maximumFractionDigits: 0})})</span></span>
+                    <span>{formatTime(calculoHoras.horasDiurnasFestivos)} <span className="text-gray-400">(${formatNumberWithSpace(valorRecargoDiurnoFestivo)})</span></span>
                   </div>
                   <div className="flex justify-between">
                     <span>Nocturnas Festivo</span>
-                    <span>{formatTime(calculoHoras.horasNocturnasFestivos)} <span className="text-gray-400">(${valorRecargoNocturnoFestivo.toLocaleString(undefined, {maximumFractionDigits: 0})})</span></span>
+                    <span>{formatTime(calculoHoras.horasNocturnasFestivos)} <span className="text-gray-400">(${formatNumberWithSpace(valorRecargoNocturnoFestivo)})</span></span>
                   </div>
                 </div>
-                <div className="font-bold text-right mt-2">Total Recargos: <span className="text-bomberored-700">${totalRecargos.toLocaleString()}</span></div>
+                <div className="font-bold text-right mt-2">Total Recargos: <span className="text-bomberored-700">${formatNumberWithSpace(totalRecargos)}</span></div>
               </div>
 
               {/* Horas Extras */}
@@ -1258,27 +1283,27 @@ export default function ControlHorasExtras() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Extra Diurna L-V</span>
-                    <span>{formatTime(calculoHoras.horasExtDiurnasLV)} <span className="text-gray-400">(${valorExtraDiurnaLV.toLocaleString(undefined, {maximumFractionDigits: 0})})</span></span>
+                    <span>{formatTime(calculoHoras.horasExtDiurnasLV)} <span className="text-gray-400">(${formatNumberWithSpace(valorExtraDiurnaLV)})</span></span>
                   </div>
                   <div className="flex justify-between">
                     <span>Extra Nocturna L-V</span>
-                    <span>{formatTime(calculoHoras.horasExtNocturnasLV)} <span className="text-gray-400">(${valorExtraNocturnaLV.toLocaleString(undefined, {maximumFractionDigits: 0})})</span></span>
+                    <span>{formatTime(calculoHoras.horasExtNocturnasLV)} <span className="text-gray-400">(${formatNumberWithSpace(valorExtraNocturnaLV)})</span></span>
                   </div>
                   <div className="flex justify-between">
                     <span>Extra Diurna Festivo</span>
-                    <span>{formatTime(calculoHoras.horasExtDiurnasFestivos)} <span className="text-gray-400">(${valorExtraDiurnaFestivo.toLocaleString(undefined, {maximumFractionDigits: 0})})</span></span>
+                    <span>{formatTime(calculoHoras.horasExtDiurnasFestivos)} <span className="text-gray-400">(${formatNumberWithSpace(valorExtraDiurnaFestivo)})</span></span>
                   </div>
                   <div className="flex justify-between">
                     <span>Extra Nocturna Festivo</span>
-                    <span>{formatTime(calculoHoras.horasExtNocturnasFestivos)} <span className="text-gray-400">(${valorExtraNocturnaFestivo.toLocaleString(undefined, {maximumFractionDigits: 0})})</span></span>
+                    <span>{formatTime(calculoHoras.horasExtNocturnasFestivos)} <span className="text-gray-400">(${formatNumberWithSpace(valorExtraNocturnaFestivo)})</span></span>
                   </div>
                 </div>
-                <div className="font-bold text-right mt-2">Total Extras: <span className="text-bomberored-700">${totalHorasExtras.toLocaleString()}</span></div>
+                <div className="font-bold text-right mt-2">Total Extras: <span className="text-bomberored-700">${formatNumberWithSpace(totalHorasExtras)}</span></div>
               </div>
             </section>
             {/* Resumen final */}
             <div className="w-full text-right mt-4 font-bold text-lg">
-              Total a pagar: <span className="text-bomberored-800">${totalAPagar.toLocaleString()}</span>
+              Total a pagar: <span className="text-bomberored-800">${formatNumberWithSpace(totalAPagar)}</span>
             </div>
             {topeFecha && topeHora && (
               <div className="w-full text-right mt-2 font-medium text-base text-gray-700">
