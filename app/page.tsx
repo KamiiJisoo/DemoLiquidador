@@ -1151,11 +1151,6 @@ export default function ControlHorasExtras() {
                             <AlertCircle className="w-4 h-4" />
                             Festivo
                           </span>
-                        ) : dia.isSunday ? (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F44E4E] text-white font-bold text-sm">
-                            <AlertCircle className="w-4 h-4" />
-                            Domingo
-                          </span>
                         ) : null}
                       </div>
                     </div>
