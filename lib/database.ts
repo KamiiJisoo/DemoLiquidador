@@ -14,7 +14,7 @@ async function connectToDatabase() {
     pool = await mysql.createPool({
       host: 'localhost',
       user: 'root',
-      password: '',
+      password: process.env.DATABASE_PASSWORD,
       database: 'liquidador_bomberos',
       multipleStatements: true,
       waitForConnections: true,

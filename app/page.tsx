@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { format, addDays, startOfMonth, endOfMonth, parse, differenceInHours, differenceInMinutes, getDaysInMonth, startOfWeek, endOfWeek, isSameMonth, isBefore, isAfter } from "date-fns"
+import { format, addDays, startOfMonth, endOfMonth, parse, differenceInHours, differenceInMinutes, getDaysInMonth, startOfWeek, endOfWeek, isSameMonth, isBefore, isAfter, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { Calendar, Clock, AlertCircle, Lock } from "lucide-react"
 import DatePicker from "react-datepicker"
@@ -498,6 +498,7 @@ export default function ControlHorasExtras() {
   const [password, setPassword] = useState("")
   const [errorAuth, setErrorAuth] = useState("")
   const passwordRef = useRef<HTMLInputElement>(null)
+  const [errorValidacion, setErrorValidacion] = useState<string>("")
 
   useEffect(() => {
     console.log('Registering access...');
@@ -693,6 +694,39 @@ export default function ControlHorasExtras() {
 
   // Calcular todas las horas y recargos
   const calcularHorasYRecargos = () => {
+    // Validar que haya al menos un par de entrada/salida completo
+    let hayDatosValidos = false
+    const fechasConErrores: string[] = []
+    Object.entries(diasMes).forEach(([fecha, dia]) => {
+      // Check if both entry1 and exit1 are provided or both entry2 and exit2 are provided
+      if ((dia.entrada1 && dia.salida1) || (dia.entrada2 && dia.salida2)) {
+        hayDatosValidos = true
+      }
+      // Check for incomplete entries for any turn
+      if (dia.entrada1 && !dia.salida1) {
+        fechasConErrores.push(`${format(parseISO(fecha), 'yyyy-MM-dd')} (Turno 1: Salida incompleta)`)
+      }
+      if (!dia.entrada1 && dia.salida1) {
+        fechasConErrores.push(`${format(parseISO(fecha), 'yyyy-MM-dd')} (Turno 1: Entrada incompleta)`)
+      }
+      if (dia.entrada2 && !dia.salida2) {
+        fechasConErrores.push(`${format(parseISO(fecha), 'yyyy-MM-dd')} (Turno 2: Salida incompleta)`)
+      }
+      if (!dia.entrada2 && dia.salida2) {
+        fechasConErrores.push(`${format(parseISO(fecha), 'yyyy-MM-dd')} (Turno 2: Entrada incompleta)`)
+      }
+    })
+
+    if (!hayDatosValidos) {
+      let mensaje = "Debe ingresar al menos un par de hora de entrada y salida para realizar el cálculo."
+      if (fechasConErrores.length > 0) {
+        mensaje += " Errores en: " + fechasConErrores.join(", ")
+      }
+      setErrorValidacion(mensaje)
+      return
+    }
+
+    setErrorValidacion("")
     let totalMinutos = 0
     let recNocturno = 0 // L-S (18:00-06:00) hasta 190h
     let recDomNoct = 0  // Dom/fest (18:00-06:00) hasta 190h
@@ -1250,11 +1284,17 @@ export default function ControlHorasExtras() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-col md:flex-row gap-6 w-full justify-center mt-2">
-              <button className="bg-red-500 hover:bg-red-500 text-white w-full md:w-auto px-10 py-4 text-lg font-bold rounded-lg shadow flex items-center gap-2 justify-center transition-colors" onClick={calcularHorasYRecargos} type="button">
+            <div className="flex flex-col items-center w-full mt-2">
+              <button className="bg-red-500 hover:bg-red-500 text-white w-auto px-10 py-4 text-lg font-bold rounded-lg shadow flex items-center gap-2 justify-center transition-colors" onClick={calcularHorasYRecargos} type="button">
                 <Clock className="w-5 h-5" />
                 CALCULAR HORAS Y RECARGOS
               </button>
+              {errorValidacion && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4 text-center w-full" role="alert">
+                  <strong className="font-bold">Error: </strong>
+                  <span className="block sm:inline">{errorValidacion}</span>
+                </div>
+              )}
             </div>
             <section className="w-full mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Recargos */}
