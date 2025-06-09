@@ -694,11 +694,10 @@ export default function ControlHorasExtras() {
 
   // Calcular todas las horas y recargos
   const calcularHorasYRecargos = () => {
-    // Validar que haya al menos un par de entrada/salida completo
+    // Check if both entry1 and exit1 are provided or both entry2 and exit2 are provided
     let hayDatosValidos = false
     const fechasConErrores: string[] = []
     Object.entries(diasMes).forEach(([fecha, dia]) => {
-      // Check if both entry1 and exit1 are provided or both entry2 and exit2 are provided
       if ((dia.entrada1 && dia.salida1) || (dia.entrada2 && dia.salida2)) {
         hayDatosValidos = true
       }
@@ -717,12 +716,14 @@ export default function ControlHorasExtras() {
       }
     })
 
-    if (!hayDatosValidos) {
-      let mensaje = "Debe ingresar al menos un par de hora de entrada y salida para realizar el cálculo."
-      if (fechasConErrores.length > 0) {
-        mensaje += " Errores en: " + fechasConErrores.join(", ")
-      }
+    if (fechasConErrores.length > 0) {
+      const mensaje = "Error: Se encontraron horas incompletas en las siguientes fechas: " + fechasConErrores.join(", ")
       setErrorValidacion(mensaje)
+      return // Detener el cálculo si hay errores
+    }
+
+    if (!hayDatosValidos) {
+      setErrorValidacion("Debe ingresar al menos un par de hora de entrada y salida para realizar el cálculo.")
       return
     }
 
