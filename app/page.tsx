@@ -499,6 +499,7 @@ export default function ControlHorasExtras() {
   const [errorAuth, setErrorAuth] = useState("")
   const passwordRef = useRef<HTMLInputElement>(null)
   const [errorValidacion, setErrorValidacion] = useState<string>("")
+  const [camposConError, setCamposConError] = useState<{[key: string]: string[]}>({})
 
   useEffect(() => {
     console.log('Registering access...');
@@ -682,6 +683,30 @@ export default function ControlHorasExtras() {
         nuevoDiasMes[fecha].total = "Error"
       }
 
+      // Actualizar camposConError inmediatamente
+      const camposError: {[key: string]: string[]} = { ...camposConError } // Copiar el estado actual
+      const erroresActuales: string[] = []
+
+      if (nuevoDiasMes[fecha].entrada1 && !nuevoDiasMes[fecha].salida1) {
+        erroresActuales.push('salida1')
+      }
+      if (!nuevoDiasMes[fecha].entrada1 && nuevoDiasMes[fecha].salida1) {
+        erroresActuales.push('entrada1')
+      }
+      if (nuevoDiasMes[fecha].entrada2 && !nuevoDiasMes[fecha].salida2) {
+        erroresActuales.push('salida2')
+      }
+      if (!nuevoDiasMes[fecha].entrada2 && nuevoDiasMes[fecha].salida2) {
+        erroresActuales.push('entrada2')
+      }
+
+      if (erroresActuales.length > 0) {
+        camposError[fecha] = erroresActuales
+      } else {
+        delete camposError[fecha] // Eliminar la entrada si no hay errores
+      }
+      setCamposConError(camposError)
+
       return nuevoDiasMes
     })
   }
@@ -717,7 +742,7 @@ export default function ControlHorasExtras() {
     })
 
     if (fechasConErrores.length > 0) {
-      const mensaje = "Error: Se encontraron horas incompletas en las siguientes fechas: " + fechasConErrores.join(", ")
+      const mensaje = "Se encontraron horas incompletas en las siguientes fechas: " + fechasConErrores.join(", ")
       setErrorValidacion(mensaje)
       return // Detener el cálculo si hay errores
     }
@@ -838,6 +863,28 @@ export default function ControlHorasExtras() {
       horasExtDiurnasFestivos: extDomDia,
       horasExtNocturnasFestivos: extDomNoct,
     })
+
+    // Dentro de la función calcularHorasYRecargos, justo antes del return
+    const camposError: {[key: string]: string[]} = {}
+    Object.entries(diasMes).forEach(([fecha, dia]) => {
+      const errores: string[] = []
+      if (dia.entrada1 && !dia.salida1) {
+        errores.push('salida1')
+      }
+      if (!dia.entrada1 && dia.salida1) {
+        errores.push('entrada1')
+      }
+      if (dia.entrada2 && !dia.salida2) {
+        errores.push('salida2')
+      }
+      if (!dia.entrada2 && dia.salida2) {
+        errores.push('entrada2')
+      }
+      if (errores.length > 0) {
+        camposError[fecha] = errores
+      }
+    })
+    setCamposConError(camposError)
   }
 
   // Navegar al mes anterior
@@ -868,6 +915,7 @@ export default function ControlHorasExtras() {
       }
     })
     setDiasMes(nuevoDiasMes)
+    setCamposConError({}) // Limpiar también los campos con error
   }
 
   // Función para generar hash de la contraseña
@@ -1138,7 +1186,8 @@ export default function ControlHorasExtras() {
                           readOnly={!esDelMes}
                           className={cn(
                             "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white"
+                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                            camposConError[fechaStr]?.includes('entrada1') && "border-red-500 bg-red-50"
                           )}
                         />
                       </div>
@@ -1150,7 +1199,8 @@ export default function ControlHorasExtras() {
                           readOnly={!esDelMes}
                           className={cn(
                             "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white"
+                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                            camposConError[fechaStr]?.includes('salida1') && "border-red-500 bg-red-50"
                           )}
                         />
                       </div>
@@ -1162,7 +1212,8 @@ export default function ControlHorasExtras() {
                           readOnly={!esDelMes}
                           className={cn(
                             "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white"
+                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                            camposConError[fechaStr]?.includes('entrada2') && "border-red-500 bg-red-50"
                           )}
                         />
                       </div>
@@ -1174,7 +1225,8 @@ export default function ControlHorasExtras() {
                           readOnly={!esDelMes}
                           className={cn(
                             "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white"
+                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                            camposConError[fechaStr]?.includes('salida2') && "border-red-500 bg-red-50"
                           )}
                         />
                       </div>
