@@ -500,6 +500,7 @@ export default function ControlHorasExtras() {
   const passwordRef = useRef<HTMLInputElement>(null)
   const [errorValidacion, setErrorValidacion] = useState<string>("")
   const [camposConError, setCamposConError] = useState<{[key: string]: string[]}>({})
+  const [hasErrorsInCurrentWeek, setHasErrorsInCurrentWeek] = useState(false)
 
   useEffect(() => {
     console.log('Registering access...');
@@ -1043,6 +1044,15 @@ export default function ControlHorasExtras() {
     loadFestivos();
   }, []); // Este efecto se ejecuta solo una vez al montar el componente
 
+  useEffect(() => {
+    const hasErrors = Object.keys(camposConError).some(dateKey => {
+      return diasSemanaActual.some(day => format(day, "yyyy-MM-dd") === dateKey) && camposConError[dateKey].length > 0
+    })
+    if (hasErrors !== hasErrorsInCurrentWeek) {
+      setHasErrorsInCurrentWeek(hasErrors)
+    }
+  }, [semanaActual, camposConError, diasSemanaActual, hasErrorsInCurrentWeek])
+
   return (
     <div className="container mx-auto py-8 flex flex-col gap-8">
       {/* Tabs */}
@@ -1132,8 +1142,11 @@ export default function ControlHorasExtras() {
             >
               <span className="text-lg">&#8592;</span> Semana anterior
             </button>
-            <div className="font-bold text-lg text-black text-center flex-1">
+            <div className="font-bold text-lg text-black text-center flex-1 flex items-center justify-center gap-2">
               Semana {semanaActual + 1} de {semanasDelMes.length}
+              {hasErrorsInCurrentWeek && (
+                <AlertCircle className="w-5 h-5 text-red-500" />
+              )}
             </div>
             <button
               className="bg-white border border-gray-300 text-black font-bold px-6 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 justify-end"
@@ -1165,6 +1178,12 @@ export default function ControlHorasExtras() {
                   const esDelMes = isSameMonth(fechaDate, fechaInicio)
                   const dia = diasMes[fechaStr] || { entrada1: "", salida1: "", entrada2: "", salida2: "", total: "", isHoliday: false, isSunday: false }
                   const rowBg = idx % 2 === 0 ? "bg-white" : "bg-[#F8FAFC]"
+                  const hasErrors = Object.keys(camposConError).some(dateKey => {
+                    return diasSemanaActual.some(day => format(day, "yyyy-MM-dd") === dateKey) && camposConError[dateKey].length > 0
+                  })
+                  if (hasErrors !== hasErrorsInCurrentWeek) {
+                    setHasErrorsInCurrentWeek(hasErrors)
+                  }
                   return (
                     <div
                       key={fechaStr}
