@@ -686,8 +686,9 @@ export default function ControlHorasExtras() {
 
       // Actualizar camposConError inmediatamente
       const camposError: {[key: string]: string[]} = { ...camposConError } // Copiar el estado actual
-      const erroresActuales: string[] = []
+      let erroresActuales: string[] = [] // Resetear errores para la fecha actual
 
+      // Validación de turnos incompletos
       if (nuevoDiasMes[fecha].entrada1 && !nuevoDiasMes[fecha].salida1) {
         erroresActuales.push('salida1')
       }
@@ -701,10 +702,47 @@ export default function ControlHorasExtras() {
         erroresActuales.push('entrada2')
       }
 
+      // Validación de solapamiento de horarios (solo si hay datos en ambos turnos)
+      const e1 = nuevoDiasMes[fecha].entrada1
+      const s1 = nuevoDiasMes[fecha].salida1
+      const e2 = nuevoDiasMes[fecha].entrada2
+      const s2 = nuevoDiasMes[fecha].salida2
+
+      if (esHoraValida(e1) && esHoraValida(s1) && esHoraValida(e2) && esHoraValida(s2)) {
+        const horaEntrada1 = parse(e1, "HH:mm", new Date())
+        let horaSalida1 = parse(s1, "HH:mm", new Date())
+        const horaEntrada2 = parse(e2, "HH:mm", new Date())
+        let horaSalida2 = parse(s2, "HH:mm", new Date())
+
+        // Ajustar horaSalida si cruza la medianoche para el cálculo de solapamiento
+        if (horaSalida1 < horaEntrada1) horaSalida1 = addDays(horaSalida1, 1)
+        if (horaSalida2 < horaEntrada2) horaSalida2 = addDays(horaSalida2, 1)
+
+        // Validar que Entrada < Salida para cada turno individualmente
+        if (isAfter(horaEntrada1, horaSalida1)) erroresActuales.push('entrada1', 'salida1')
+        if (isAfter(horaEntrada2, horaSalida2)) erroresActuales.push('entrada2', 'salida2')
+
+        // Comprobar solapamiento: (e1 < s2 && e2 < s1) siempre que s1 !== e2
+        // No debe haber solapamiento entre el primer y segundo turno, excepto si salida1 === entrada2
+        const overlap = (isBefore(horaEntrada1, horaSalida2) && isBefore(horaEntrada2, horaSalida1))
+
+        if (overlap && !(s1 === e2)) {
+          // Si hay solapamiento y no es por continuidad (salida1 == entrada2)
+          if (!erroresActuales.includes('entrada1')) erroresActuales.push('entrada1')
+          if (!erroresActuales.includes('salida1')) erroresActuales.push('salida1')
+          if (!erroresActuales.includes('entrada2')) erroresActuales.push('entrada2')
+          if (!erroresActuales.includes('salida2')) erroresActuales.push('salida2')
+        }
+
+        // Validar que no haya duplicidad dentro del mismo turno (Entrada1 no debe ser igual a Salida1, etc. ) 
+        if(e1 === s1 && e1 !== '') erroresActuales.push('entrada1', 'salida1')
+        if(e2 === s2 && e2 !== '') erroresActuales.push('entrada2', 'salida2')
+      }
+
       if (erroresActuales.length > 0) {
-        camposError[fecha] = erroresActuales
+        camposError[fecha] = erroresActuales.filter((value, index, self) => self.indexOf(value) === index)
       } else {
-        delete camposError[fecha] // Eliminar la entrada si no hay errores
+        delete camposError[fecha]
       }
       setCamposConError(camposError)
 
@@ -720,32 +758,79 @@ export default function ControlHorasExtras() {
 
   // Calcular todas las horas y recargos
   const calcularHorasYRecargos = () => {
-    // Check if both entry1 and exit1 are provided or both entry2 and exit2 are provided
     let hayDatosValidos = false
-    const fechasConErrores: string[] = []
+    const erroresPorFecha: {[key: string]: string[]} = {}
+
     Object.entries(diasMes).forEach(([fecha, dia]) => {
+      const erroresFechaActual: string[] = []
+
       if ((dia.entrada1 && dia.salida1) || (dia.entrada2 && dia.salida2)) {
         hayDatosValidos = true
       }
-      // Check for incomplete entries for any turn
+
+      // Validación de turnos incompletos
       if (dia.entrada1 && !dia.salida1) {
-        fechasConErrores.push(`${format(parseISO(fecha), 'yyyy-MM-dd')} (Turno 1: Salida incompleta)`)
+        erroresFechaActual.push(`Turno 1: Salida incompleta`)
       }
       if (!dia.entrada1 && dia.salida1) {
-        fechasConErrores.push(`${format(parseISO(fecha), 'yyyy-MM-dd')} (Turno 1: Entrada incompleta)`)
+        erroresFechaActual.push(`Turno 1: Entrada incompleta`)
       }
       if (dia.entrada2 && !dia.salida2) {
-        fechasConErrores.push(`${format(parseISO(fecha), 'yyyy-MM-dd')} (Turno 2: Salida incompleta)`)
+        erroresFechaActual.push(`Turno 2: Salida incompleta`)
       }
       if (!dia.entrada2 && dia.salida2) {
-        fechasConErrores.push(`${format(parseISO(fecha), 'yyyy-MM-dd')} (Turno 2: Entrada incompleta)`)
+        erroresFechaActual.push(`Turno 2: Entrada incompleta`)
+      }
+
+      // Validación de solapamiento y duplicidad
+      const e1 = dia.entrada1
+      const s1 = dia.salida1
+      const e2 = dia.entrada2
+      const s2 = dia.salida2
+
+      if (esHoraValida(e1) && esHoraValida(s1) && esHoraValida(e2) && esHoraValida(s2)) {
+        const horaEntrada1 = parse(e1, "HH:mm", new Date())
+        let horaSalida1 = parse(s1, "HH:mm", new Date())
+        const horaEntrada2 = parse(e2, "HH:mm", new Date())
+        let horaSalida2 = parse(s2, "HH:mm", new Date())
+
+        // Ajustar horaSalida si cruza la medianoche
+        if (isBefore(horaSalida1, horaEntrada1)) horaSalida1 = addDays(horaSalida1, 1)
+        if (isBefore(horaSalida2, horaEntrada2)) horaSalida2 = addDays(horaSalida2, 1)
+
+        // Validar que Entrada < Salida para cada turno individualmente
+        if (isAfter(horaEntrada1, horaSalida1)) erroresFechaActual.push('Turno 1: Entrada después de Salida')
+        if (isAfter(horaEntrada2, horaSalida2)) erroresFechaActual.push('Turno 2: Entrada después de Salida')
+
+        // Comprobar solapamiento: (e1 < s2 && e2 < s1) siempre que s1 !== e2
+        const overlap = (isBefore(horaEntrada1, horaSalida2) && isBefore(horaEntrada2, horaSalida1))
+
+        if (overlap && !(s1 === e2)) {
+          erroresFechaActual.push('Franja horaria duplicada')
+        }
+
+        // Validar que no haya duplicidad dentro del mismo turno (e.g., Entrada1 no debe ser igual a Salida1)
+        if ((e1 === s1 && e1 !== '') || (e2 === s2 && e2 !== '')) {
+          erroresFechaActual.push('Entrada y Salida del mismo turno son idénticas')
+        }
+      }
+
+      if (erroresFechaActual.length > 0) {
+        erroresPorFecha[fecha] = erroresFechaActual.filter((value, index, self) => self.indexOf(value) === index)
       }
     })
 
-    if (fechasConErrores.length > 0) {
-      const mensaje = "Se encontraron horas incompletas en las siguientes fechas: " + fechasConErrores.join(", ")
-      setErrorValidacion(mensaje)
-      return // Detener el cálculo si hay errores
+    const allErrors: string[] = []
+    Object.entries(erroresPorFecha).forEach(([fecha, errores]) => {
+      const fechaFormateada = format(parseISO(fecha), 'dd/MM/yyyy')
+      errores.forEach(errorMsg => {
+        allErrors.push(`${fechaFormateada} (${errorMsg})`)
+      })
+    })
+
+    if (allErrors.length > 0) {
+      setErrorValidacion("Se encontraron errores en las siguientes fechas: " + allErrors.join("; "))
+      return
     }
 
     if (!hayDatosValidos) {
