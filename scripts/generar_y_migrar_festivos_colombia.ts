@@ -30,7 +30,7 @@ const festivosReligiosos = [
   { nombre: 'Sagrado Corazón de Jesús', offset: 71, emiliani: true }, // 68 días después de Pascua, pero se traslada
 ];
 
-// Calcular fecha de Pascua (algoritmo de Meeus/Jones/Butcher)
+// Función para calcular la fecha de Pascua (Algoritmo de Meeus/Jones/Butcher)
 function calcularPascua(year: number): Date {
   const a = year % 19;
   const b = Math.floor(year / 100);
@@ -44,33 +44,46 @@ function calcularPascua(year: number): Date {
   const k = c % 4;
   const l = (32 + 2 * e + 2 * i - h - k) % 7;
   const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const mes = Math.floor((h + l - 7 * m + 114) / 31);
-  const dia = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(year, mes - 1, dia);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
 }
 
-// Trasladar festivo al siguiente lunes si no cae lunes
+// Función para trasladar una fecha al lunes siguiente (Ley Emiliani)
 function trasladarALunes(fecha: Date): Date {
   const diaSemana = fecha.getDay();
-  if (diaSemana === 1) return fecha; // Lunes
-  // Si no es lunes, trasladar al siguiente lunes
-  const diasParaLunes = (8 - diaSemana) % 7;
-  return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate() + diasParaLunes);
+  if (diaSemana === 0) { // Domingo
+    fecha.setDate(fecha.getDate() + 1);
+  } else if (diaSemana === 6) { // Sábado
+    fecha.setDate(fecha.getDate() + 2);
+  }
+  return fecha;
 }
 
 // Función para verificar si una fecha ya existe
-async function fechaExiste(pool: any, fecha: string): Promise<boolean> {
-  const [rows]: any = await pool.execute('SELECT COUNT(*) as count FROM festivos WHERE fecha = ?', [fecha]);
-  return rows[0].count > 0;
+async function fechaExiste(supabase: any, fecha: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('festivos')
+    .select('*')
+    .eq('fecha', fecha)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') throw error;
+  return !!data;
 }
 
 async function main() {
   try {
     console.log('Conectando a la base de datos...');
-    const pool = await connectToDatabase();
+    const supabase = await connectToDatabase();
     
     console.log('Eliminando festivos existentes...');
-    await pool.execute('DELETE FROM festivos');
+    const { error: deleteError } = await supabase
+      .from('festivos')
+      .delete()
+      .neq('id', 0);
+    
+    if (deleteError) throw deleteError;
     console.log('Festivos existentes eliminados.');
 
     let totalFestivos = 0;
@@ -82,7 +95,7 @@ async function main() {
       // Fijos
       for (const festivo of festivosFijos) {
         const fecha = `${year}-${String(festivo.mes).padStart(2, '0')}-${String(festivo.dia).padStart(2, '0')}`;
-        if (!(await fechaExiste(pool, fecha))) {
+        if (!(await fechaExiste(supabase, fecha))) {
           await agregarFestivo(fecha, festivo.nombre, 'FIJO');
           totalFestivos++;
         } else {
@@ -96,7 +109,7 @@ async function main() {
         const fechaOriginal = new Date(year, festivo.mes - 1, festivo.dia);
         const fechaLunes = trasladarALunes(fechaOriginal);
         const fecha = `${fechaLunes.getFullYear()}-${String(fechaLunes.getMonth() + 1).padStart(2, '0')}-${String(fechaLunes.getDate()).padStart(2, '0')}`;
-        if (!(await fechaExiste(pool, fecha))) {
+        if (!(await fechaExiste(supabase, fecha))) {
           await agregarFestivo(fecha, festivo.nombre, 'MOVIL');
           totalFestivos++;
         } else {
@@ -113,7 +126,7 @@ async function main() {
         fechaBase.setDate(fechaBase.getDate() + festivo.offset);
         let fechaFinal = festivo.emiliani ? trasladarALunes(fechaBase) : fechaBase;
         const fecha = `${fechaFinal.getFullYear()}-${String(fechaFinal.getMonth() + 1).padStart(2, '0')}-${String(fechaFinal.getDate()).padStart(2, '0')}`;
-        if (!(await fechaExiste(pool, fecha))) {
+        if (!(await fechaExiste(supabase, fecha))) {
           await agregarFestivo(fecha, festivo.nombre, 'MOVIL');
           totalFestivos++;
         } else {
@@ -130,9 +143,13 @@ async function main() {
     
     // Verificar algunos festivos importantes
     console.log('\nVerificando algunos festivos importantes:');
-    const [rows]: any = await pool.execute('SELECT * FROM festivos WHERE fecha IN (?, ?, ?)', 
-      ['2025-06-02', '2024-03-28', '2024-03-29']);
-    console.log('Festivos verificados:', rows);
+    const { data: festivosVerificados, error: errorVerificacion } = await supabase
+      .from('festivos')
+      .select('*')
+      .in('fecha', ['2025-06-02', '2024-03-28', '2024-03-29']);
+    
+    if (errorVerificacion) throw errorVerificacion;
+    console.log('Festivos verificados:', festivosVerificados);
 
   } catch (error) {
     console.error('Error durante la migración:', error);
