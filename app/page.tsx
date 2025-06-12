@@ -488,7 +488,7 @@ export default function ControlHorasExtras() {
   const [cargosState, setCargosState] = useState<{ id: number; nombre: string; salario: number }[]>([])
   const [accessLogs, setAccessLogs] = useState<Array<{ id: number; ip: string; fecha: string }>>([]);
   const [editando, setEditando] = useState<string | null>(null)
-  const [focusedInput, setFocusedInput] = useState<'cargo' | 'salario' | null>(null)
+  const [focusedInput, setFocusedInput] = useState<{fecha: string, tipo: string} | null>(null)
   const inputCargoRef = useRef<HTMLInputElement>(null)
   const inputSalarioRef = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState<'registro' | 'calculos'>('registro')
@@ -569,6 +569,14 @@ export default function ControlHorasExtras() {
     const horas = Math.floor(minutos / 60)
     const mins = minutos % 60
     return `${horas.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
+  }
+
+  // Función para formatear hora en formato 24 horas
+  const formatTime24Hour = (time: string) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    return `${hour.toString().padStart(2, '0')}:${minutes}`;
   }
 
   // Calcular las semanas del mes
@@ -1283,56 +1291,112 @@ export default function ControlHorasExtras() {
                         <div className="text-gray-500 text-xs">{fechaFormateada}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Input
-                          type="time"
-                          value={dia.entrada1}
-                          onChange={(e) => handleCambioHora(fechaStr, "entrada1", e.target.value)}
-                          readOnly={!esDelMes}
-                          className={cn(
-                            "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
-                            camposConError[fechaStr]?.includes('entrada1') && "border-red-500 bg-red-50"
+                        <div className="relative w-full">
+                          <Input
+                            type="time"
+                            value={dia.entrada1}
+                            onChange={(e) => handleCambioHora(fechaStr, "entrada1", e.target.value)}
+                            onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "entrada1"})}
+                            onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "entrada1" ? null : prev)}
+                            readOnly={!esDelMes}
+                            className={cn(
+                              "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
+                              !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                              camposConError[fechaStr]?.includes('entrada1') && "border-red-500 bg-red-50"
+                            )}
+                          />
+                          {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "entrada1" && (
+                            <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-sm font-semibold text-gray-700 z-20 flex items-center justify-center">
+                            Formato de hora:12 horas (AM/PM)
+                            </div>
                           )}
-                        />
+                          {dia.entrada1 && (
+                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                              {formatTime24Hour(dia.entrada1)}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Input
-                          type="time"
-                          value={dia.salida1}
-                          onChange={(e) => handleCambioHora(fechaStr, "salida1", e.target.value)}
-                          readOnly={!esDelMes}
-                          className={cn(
-                            "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
-                            camposConError[fechaStr]?.includes('salida1') && "border-red-500 bg-red-50"
+                        <div className="relative w-full">
+                          <Input
+                            type="time"
+                            value={dia.salida1}
+                            onChange={(e) => handleCambioHora(fechaStr, "salida1", e.target.value)}
+                            onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "salida1"})}
+                            onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "salida1" ? null : prev)}
+                            readOnly={!esDelMes}
+                            className={cn(
+                              "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
+                              !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                              camposConError[fechaStr]?.includes('salida1') && "border-red-500 bg-red-50"
+                            )}
+                          />
+                          {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "salida1" && (
+                            <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-sm font-semibold text-gray-700 z-20 flex items-center justify-center">
+                              Formato de hora:12 horas (AM/PM)
+                            </div>
                           )}
-                        />
+                          {dia.salida1 && (
+                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                              {formatTime24Hour(dia.salida1)}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Input
-                          type="time"
-                          value={dia.entrada2}
-                          onChange={(e) => handleCambioHora(fechaStr, "entrada2", e.target.value)}
-                          readOnly={!esDelMes}
-                          className={cn(
-                            "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
-                            camposConError[fechaStr]?.includes('entrada2') && "border-red-500 bg-red-50"
+                        <div className="relative w-full">
+                          <Input
+                            type="time"
+                            value={dia.entrada2}
+                            onChange={(e) => handleCambioHora(fechaStr, "entrada2", e.target.value)}
+                            onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "entrada2"})}
+                            onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "entrada2" ? null : prev)}
+                            readOnly={!esDelMes}
+                            className={cn(
+                              "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
+                              !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                              camposConError[fechaStr]?.includes('entrada2') && "border-red-500 bg-red-50"
+                            )}
+                          />
+                          {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "entrada2" && (
+                            <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-sm font-semibold text-gray-700 z-20 flex items-center justify-center">
+                              Formato de hora:12 horas (AM/PM)
+                            </div>
                           )}
-                        />
+                          {dia.entrada2 && (
+                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                              {formatTime24Hour(dia.entrada2)}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Input
-                          type="time"
-                          value={dia.salida2}
-                          onChange={(e) => handleCambioHora(fechaStr, "salida2", e.target.value)}
-                          readOnly={!esDelMes}
-                          className={cn(
-                            "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
-                            camposConError[fechaStr]?.includes('salida2') && "border-red-500 bg-red-50"
+                        <div className="relative w-full">
+                          <Input
+                            type="time"
+                            value={dia.salida2}
+                            onChange={(e) => handleCambioHora(fechaStr, "salida2", e.target.value)}
+                            onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "salida2"})}
+                            onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "salida2" ? null : prev)}
+                            readOnly={!esDelMes}
+                            className={cn(
+                              "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
+                              !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                              camposConError[fechaStr]?.includes('salida2') && "border-red-500 bg-red-50"
+                            )}
+                          />
+                          {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "salida2" && (
+                            <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-sm font-semibold text-gray-700 z-20 flex items-center justify-center">
+                              Formato de hora:12 horas (AM/PM)
+                            </div>
                           )}
-                        />
+                          {dia.salida2 && (
+                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                              {formatTime24Hour(dia.salida2)}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="text-center font-bold text-blue-900 text-base">
                         {dia.total || "0:00"}
