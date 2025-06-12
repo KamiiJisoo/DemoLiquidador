@@ -53,6 +53,13 @@ interface DiaData {
   isSunday: boolean
 }
 
+interface AdvertenciaDiaDiferente {
+  fecha: string
+  turno: "1" | "2"
+  entrada: string
+  salida: string
+}
+
 // Interfaz para los cálculos de horas
 interface CalculoHoras {
   horasNormales: number
@@ -501,6 +508,7 @@ export default function ControlHorasExtras() {
   const [errorValidacion, setErrorValidacion] = useState<string>("")
   const [camposConError, setCamposConError] = useState<{[key: string]: string[]}>({})
   const [hasErrorsInCurrentWeek, setHasErrorsInCurrentWeek] = useState(false)
+  const [advertenciasDiaDiferente, setAdvertenciasDiaDiferente] = useState<AdvertenciaDiaDiferente[]>([]);
 
   useEffect(() => {
     console.log('Registering access...');
@@ -673,6 +681,23 @@ export default function ControlHorasExtras() {
           const horaEntrada1 = parse(nuevoDiasMes[fecha].entrada1, "HH:mm", new Date())
           let horaSalida1 = parse(nuevoDiasMes[fecha].salida1, "HH:mm", new Date())
           let minutos1 = differenceInMinutes(horaSalida1, horaEntrada1)
+          
+          // Verificar si la entrada es mayor que la salida (día diferente)
+          if (horaEntrada1 > horaSalida1) {
+            const advertencia: AdvertenciaDiaDiferente = {
+              fecha,
+              turno: "1",
+              entrada: nuevoDiasMes[fecha].entrada1,
+              salida: nuevoDiasMes[fecha].salida1
+            };
+            setAdvertenciasDiaDiferente(prev => {
+              const filtered = prev.filter(a => !(a.fecha === fecha && a.turno === "1"));
+              return [...filtered, advertencia];
+            });
+          } else {
+            setAdvertenciasDiaDiferente(prev => prev.filter(a => !(a.fecha === fecha && a.turno === "1")));
+          }
+          
           if (minutos1 < 0) minutos1 = minutos1 + 24 * 60 // Ajustar si pasa a otro día
           totalMinutos += minutos1
         }
@@ -681,6 +706,23 @@ export default function ControlHorasExtras() {
           const horaEntrada2 = parse(nuevoDiasMes[fecha].entrada2, "HH:mm", new Date())
           let horaSalida2 = parse(nuevoDiasMes[fecha].salida2, "HH:mm", new Date())
           let minutos2 = differenceInMinutes(horaSalida2, horaEntrada2)
+          
+          // Verificar si la entrada es mayor que la salida (día diferente)
+          if (horaEntrada2 > horaSalida2) {
+            const advertencia: AdvertenciaDiaDiferente = {
+              fecha,
+              turno: "2",
+              entrada: nuevoDiasMes[fecha].entrada2,
+              salida: nuevoDiasMes[fecha].salida2
+            };
+            setAdvertenciasDiaDiferente(prev => {
+              const filtered = prev.filter(a => !(a.fecha === fecha && a.turno === "2"));
+              return [...filtered, advertencia];
+            });
+          } else {
+            setAdvertenciasDiaDiferente(prev => prev.filter(a => !(a.fecha === fecha && a.turno === "2")));
+          }
+          
           if (minutos2 < 0) minutos2 = minutos2 + 24 * 60 // Ajustar si pasa a otro día
           totalMinutos += minutos2
         }
@@ -1250,6 +1292,29 @@ export default function ControlHorasExtras() {
               Semana siguiente <span className="text-lg">&#8594;</span>
             </button>
           </section>
+
+          {/* Advertencias de días diferentes */}
+          {advertenciasDiaDiferente.length > 0 && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <h3 className="text-lg font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                Advertencias de días diferentes
+              </h3>
+              <div className="space-y-2">
+                {advertenciasDiaDiferente.map((advertencia, index) => (
+                  <div key={index} className="text-yellow-700">
+                    <p>
+                      <span className="font-medium">
+                        {format(parseISO(advertencia.fecha), 'dd/MM/yyyy')} - Turno {advertencia.turno}:
+                      </span>
+                      {" "}Se ha detectado que la hora de entrada ({advertencia.entrada}) es mayor que la hora de salida ({advertencia.salida}), 
+                      lo que indica que el turno se extiende hasta el día siguiente. Si esto es correcto, puede ignorar esta advertencia.
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Tabla de días (solo semana actual) */}
           <section className="bg-white rounded-lg shadow p-6">
