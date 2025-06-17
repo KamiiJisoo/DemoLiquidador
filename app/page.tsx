@@ -1039,19 +1039,116 @@ export default function ControlHorasExtras() {
 
   // Limpiar todos los datos
   const limpiarTodo = () => {
-    const nuevoDiasMes = { ...diasMes }
-    Object.keys(nuevoDiasMes).forEach((fecha) => {
-      nuevoDiasMes[fecha] = {
-        ...nuevoDiasMes[fecha],
-        entrada1: "",
-        salida1: "",
-        entrada2: "",
-        salida2: "",
-        total: "",
+    setDiasMes({})
+    calcularHorasYRecargos()
+  }
+
+  // Función para copiar horas al día siguiente
+  const copiarAlDiaSiguiente = (fechaStr: string) => {
+    const fechaActual = parse(fechaStr, 'yyyy-MM-dd', new Date())
+    const fechaSiguiente = format(addDays(fechaActual, 1), 'yyyy-MM-dd')
+    
+    // Solo copiar si el día actual tiene datos y el día siguiente es del mismo mes
+    if (diasMes[fechaStr] && isSameMonth(parse(fechaSiguiente, 'yyyy-MM-dd', new Date()), fechaInicio)) {
+      const diaActual = diasMes[fechaStr]
+      
+      // Crear copia del estado actual
+      const nuevosDias = { ...diasMes }
+      
+      // Copiar datos al día siguiente
+      nuevosDias[fechaSiguiente] = {
+        ...nuevosDias[fechaSiguiente] || {},
+        entrada1: diaActual.entrada1,
+        salida1: diaActual.salida1,
+        entrada2: diaActual.entrada2,
+        salida2: diaActual.salida2,
+        total: diaActual.total,
+        isHoliday: nuevosDias[fechaSiguiente]?.isHoliday || false,
+        isSunday: nuevosDias[fechaSiguiente]?.isSunday || false
       }
-    })
-    setDiasMes(nuevoDiasMes)
-    setCamposConError({}) // Limpiar también los campos con error
+      
+      // Actualizar estado
+      setDiasMes(nuevosDias)
+    }
+  }
+
+  // Función para copiar horas al resto de la semana
+  const copiarAlRestoSemana = (fechaStr: string) => {
+    const fechaActual = parse(fechaStr, 'yyyy-MM-dd', new Date())
+    const diaActual = diasMes[fechaStr]
+    
+    // Solo proceder si el día actual tiene datos
+    if (!diaActual) return
+    
+    // Crear copia del estado actual
+    const nuevosDias = { ...diasMes }
+    
+    // Encontrar el índice del día actual en la semana actual
+    const indexDiaActual = diasSemanaActual.findIndex(dia => 
+      format(dia, 'yyyy-MM-dd') === fechaStr
+    )
+    
+    // Si no se encuentra el día o es el último día de la semana, salir
+    if (indexDiaActual === -1 || indexDiaActual === diasSemanaActual.length - 1) return
+    
+    // Copiar a los días restantes de la semana
+    for (let i = indexDiaActual + 1; i < diasSemanaActual.length; i++) {
+      const fechaDestino = format(diasSemanaActual[i], 'yyyy-MM-dd')
+      
+      // Solo copiar si el día destino es del mismo mes
+      if (isSameMonth(diasSemanaActual[i], fechaInicio)) {
+        nuevosDias[fechaDestino] = {
+          ...nuevosDias[fechaDestino] || {},
+          entrada1: diaActual.entrada1,
+          salida1: diaActual.salida1,
+          entrada2: diaActual.entrada2,
+          salida2: diaActual.salida2,
+          total: diaActual.total,
+          isHoliday: nuevosDias[fechaDestino]?.isHoliday || false,
+          isSunday: nuevosDias[fechaDestino]?.isSunday || false
+        }
+      }
+    }
+    
+    // Actualizar estado
+    setDiasMes(nuevosDias)
+  }
+
+  // Función para copiar horas al resto del mes
+  const copiarAlRestoMes = (fechaStr: string) => {
+    const fechaActual = parse(fechaStr, 'yyyy-MM-dd', new Date())
+    const diaActual = diasMes[fechaStr]
+    
+    // Solo proceder si el día actual tiene datos
+    if (!diaActual) return
+    
+    // Crear copia del estado actual
+    const nuevosDias = { ...diasMes }
+    
+    // Obtener todos los días del mes
+    const ultimoDiaMes = endOfMonth(fechaInicio)
+    let diaIterador = addDays(fechaActual, 1)
+    
+    // Copiar a todos los días restantes del mes
+    while (isSameMonth(diaIterador, fechaInicio) && isBefore(diaIterador, addDays(ultimoDiaMes, 1))) {
+      const fechaDestino = format(diaIterador, 'yyyy-MM-dd')
+      
+      nuevosDias[fechaDestino] = {
+        ...nuevosDias[fechaDestino] || {},
+        entrada1: diaActual.entrada1,
+        salida1: diaActual.salida1,
+        entrada2: diaActual.entrada2,
+        salida2: diaActual.salida2,
+        total: diaActual.total,
+        isHoliday: nuevosDias[fechaDestino]?.isHoliday || false,
+        isSunday: nuevosDias[fechaDestino]?.isSunday || false
+      }
+      
+      diaIterador = addDays(diaIterador, 1)
+    }
+    
+    // Actualizar estado
+    setDiasMes(nuevosDias)
   }
 
   // Función para generar hash de la contraseña
@@ -1190,8 +1287,8 @@ export default function ControlHorasExtras() {
 
   return (
     <div className="container mx-auto py-8 flex flex-col gap-8">
-      {/* Tabs */}
-      <div className="flex bg-gray-100 rounded-lg p-1 w-fit mx-auto mb-4">
+      {/* Navegación de pestañas */}
+      <div className="bg-gray-100 rounded-xl p-2 flex mb-6">
         <button
           className={`px-8 py-2 rounded-md font-bold transition-colors ${tab === 'registro' ? 'bg-white text-black shadow' : 'text-gray-500'}`}
           onClick={() => setTab('registro')}
@@ -1319,13 +1416,21 @@ export default function ControlHorasExtras() {
           {/* Tabla de días (solo semana actual) */}
           <section className="bg-white rounded-lg shadow p-6">
             <div className="w-full overflow-x-auto">
-              <div className="min-w-[800px]">
-                <div className="grid grid-cols-7 gap-4 font-bold mb-2 text-center text-black">
+              <div className="min-w-[900px]">
+                <div className="grid grid-cols-8 gap-2 font-bold mb-2 text-center text-black text-sm">
                   <div className="text-left">DÍA</div>
                   <div>ENTRADA 1</div>
                   <div>SALIDA 1</div>
                   <div>ENTRADA 2</div>
                   <div>SALIDA 2</div>
+                  <div>
+                    <div className="flex items-center justify-center gap-1 text-xs">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      COPIAR A
+                    </div>
+                  </div>
                   <div>TOTAL</div>
                   <div>FESTIVOS</div>
                 </div>
@@ -1346,135 +1451,199 @@ export default function ControlHorasExtras() {
                     <div
                       key={fechaStr}
                       className={cn(
-                        "grid grid-cols-7 gap-4 mb-0 items-center rounded-lg border-b border-gray-200 py-2",
+                        "grid grid-cols-8 gap-2 mb-0 items-center rounded-lg border-b border-gray-200 py-2",
                         rowBg,
                         !esDelMes && "bg-gray-100 opacity-60"
                       )}
                     >
+                      {/* DÍA */}
                       <div>
-                        <div className="font-bold text-black text-sm">{nombreDia}</div>
-                        <div className="text-gray-500 text-xs">{fechaFormateada}</div>
+                        <div className="font-bold text-black text-xs">{nombreDia}</div>
+                        <div className="text-gray-500 text-[10px]">{fechaFormateada}</div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-full">
-                          <Input
-                            type="time"
-                            value={dia.entrada1}
-                            onChange={(e) => handleCambioHora(fechaStr, "entrada1", e.target.value)}
-                            onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "entrada1"})}
-                            onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "entrada1" ? null : prev)}
-                            readOnly={!esDelMes}
-                            className={cn(
-                              "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                              !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
-                              camposConError[fechaStr]?.includes('entrada1') && "border-red-500 bg-red-50"
-                            )}
-                          />
-                          {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "entrada1" && (
-                            <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-sm font-semibold text-gray-700 z-20 flex items-center justify-center">
+                      
+                      {/* ENTRADA 1 */}
+                      <div className="relative w-full">
+                        <Input
+                          type="time"
+                          value={dia.entrada1}
+                          onChange={(e) => handleCambioHora(fechaStr, "entrada1", e.target.value)}
+                          onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "entrada1"})}
+                          onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "entrada1" ? null : prev)}
+                          readOnly={!esDelMes}
+                          className={cn(
+                            "text-center rounded-md px-1 py-1 text-sm text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
+                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                            camposConError[fechaStr]?.includes('entrada1') && "border-red-500 bg-red-50"
+                          )}
+                        />
+                        {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "entrada1" && (
+                          <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-xs font-semibold text-gray-700 z-20 flex items-center justify-center">
+                          Formato de hora:12 horas (AM/PM)
+                          </div>
+                        )}
+                        {dia.entrada1 && (
+                          <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                            {formatTime24Hour(dia.entrada1)}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* SALIDA 1 */}
+                      <div className="relative w-full">
+                        <Input
+                          type="time"
+                          value={dia.salida1}
+                          onChange={(e) => handleCambioHora(fechaStr, "salida1", e.target.value)}
+                          onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "salida1"})}
+                          onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "salida1" ? null : prev)}
+                          readOnly={!esDelMes}
+                          className={cn(
+                            "text-center rounded-md px-1 py-1 text-sm text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
+                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                            camposConError[fechaStr]?.includes('salida1') && "border-red-500 bg-red-50"
+                          )}
+                        />
+                        {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "salida1" && (
+                          <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-xs font-semibold text-gray-700 z-20 flex items-center justify-center">
                             Formato de hora:12 horas (AM/PM)
-                            </div>
-                          )}
-                          {dia.entrada1 && (
-                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                              {formatTime24Hour(dia.entrada1)}
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
+                        {dia.salida1 && (
+                          <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                            {formatTime24Hour(dia.salida1)}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-full">
-                          <Input
-                            type="time"
-                            value={dia.salida1}
-                            onChange={(e) => handleCambioHora(fechaStr, "salida1", e.target.value)}
-                            onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "salida1"})}
-                            onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "salida1" ? null : prev)}
-                            readOnly={!esDelMes}
-                            className={cn(
-                              "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                              !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
-                              camposConError[fechaStr]?.includes('salida1') && "border-red-500 bg-red-50"
-                            )}
-                          />
-                          {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "salida1" && (
-                            <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-sm font-semibold text-gray-700 z-20 flex items-center justify-center">
-                              Formato de hora:12 horas (AM/PM)
-                            </div>
+                      
+                      {/* ENTRADA 2 */}
+                      <div className="relative w-full">
+                        <Input
+                          type="time"
+                          value={dia.entrada2}
+                          onChange={(e) => handleCambioHora(fechaStr, "entrada2", e.target.value)}
+                          onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "entrada2"})}
+                          onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "entrada2" ? null : prev)}
+                          readOnly={!esDelMes}
+                          className={cn(
+                            "text-center rounded-md px-1 py-1 text-sm text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
+                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                            camposConError[fechaStr]?.includes('entrada2') && "border-red-500 bg-red-50"
                           )}
-                          {dia.salida1 && (
-                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                              {formatTime24Hour(dia.salida1)}
-                            </div>
-                          )}
-                        </div>
+                        />
+                        {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "entrada2" && (
+                          <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-xs font-semibold text-gray-700 z-20 flex items-center justify-center">
+                            Formato de hora:12 horas (AM/PM)
+                          </div>
+                        )}
+                        {dia.entrada2 && (
+                          <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                            {formatTime24Hour(dia.entrada2)}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-full">
-                          <Input
-                            type="time"
-                            value={dia.entrada2}
-                            onChange={(e) => handleCambioHora(fechaStr, "entrada2", e.target.value)}
-                            onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "entrada2"})}
-                            onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "entrada2" ? null : prev)}
-                            readOnly={!esDelMes}
-                            className={cn(
-                              "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                              !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
-                              camposConError[fechaStr]?.includes('entrada2') && "border-red-500 bg-red-50"
-                            )}
-                          />
-                          {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "entrada2" && (
-                            <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-sm font-semibold text-gray-700 z-20 flex items-center justify-center">
-                              Formato de hora:12 horas (AM/PM)
-                            </div>
+                      
+                      {/* SALIDA 2 */}
+                      <div className="relative w-full">
+                        <Input
+                          type="time"
+                          value={dia.salida2}
+                          onChange={(e) => handleCambioHora(fechaStr, "salida2", e.target.value)}
+                          onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "salida2"})}
+                          onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "salida2" ? null : prev)}
+                          readOnly={!esDelMes}
+                          className={cn(
+                            "text-center rounded-md px-1 py-1 text-sm text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
+                            !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
+                            camposConError[fechaStr]?.includes('salida2') && "border-red-500 bg-red-50"
                           )}
-                          {dia.entrada2 && (
-                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                              {formatTime24Hour(dia.entrada2)}
-                            </div>
-                          )}
-                        </div>
+                        />
+                        {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "salida2" && (
+                          <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-xs font-semibold text-gray-700 z-20 flex items-center justify-center">
+                            Formato de hora:12 horas (AM/PM)
+                          </div>
+                        )}
+                        {dia.salida2 && (
+                          <div className="absolute right-6 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+                            {formatTime24Hour(dia.salida2)}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-full">
-                          <Input
-                            type="time"
-                            value={dia.salida2}
-                            onChange={(e) => handleCambioHora(fechaStr, "salida2", e.target.value)}
-                            onFocus={() => setFocusedInput({fecha: fechaStr, tipo: "salida2"})}
-                            onBlur={() => setFocusedInput((prev) => prev && prev.fecha === fechaStr && prev.tipo === "salida2" ? null : prev)}
-                            readOnly={!esDelMes}
-                            className={cn(
-                              "text-center rounded-md px-2 py-1 text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-bomberored-700 w-full",
-                              !esDelMes ? "bg-[#FEF2F2] text-gray-400" : "bg-white",
-                              camposConError[fechaStr]?.includes('salida2') && "border-red-500 bg-red-50"
-                            )}
-                          />
-                          {focusedInput && focusedInput.fecha === fechaStr && focusedInput.tipo === "salida2" && (
-                            <div className="absolute w-full left-0 -top-12 bg-white border border-gray-300 shadow-md rounded px-3 py-0.5 text-sm font-semibold text-gray-700 z-20 flex items-center justify-center">
-                              Formato de hora:12 horas (AM/PM)
-                            </div>
-                          )}
-                          {dia.salida2 && (
-                            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-                              {formatTime24Hour(dia.salida2)}
-                            </div>
-                          )}
-                        </div>
+                      
+                      {/* COPIAR A */}
+                      <div className="flex items-center justify-center">
+                        {esDelMes && (
+                          <div className="flex flex-row gap-1">
+                            <button
+                              type="button"
+                              onClick={() => copiarAlDiaSiguiente(fechaStr)}
+                              disabled={!dia.entrada1 || !dia.salida1 || idx === diasSemanaActual.length - 1}
+                              className={cn(
+                                "p-0.5 rounded-md text-xs font-medium transition-colors flex flex-col items-center",
+                                (dia.entrada1 && dia.salida1 && idx !== diasSemanaActual.length - 1) 
+                                  ? "bg-blue-100 hover:bg-blue-200 text-blue-700" 
+                                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              )}
+                              title="Copiar al día siguiente"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m-8 6H4m0 0l4 4m-4-4l4-4" />
+                              </svg>
+                              <span className="text-[8px] mt-0.5">Día</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => copiarAlRestoSemana(fechaStr)}
+                              disabled={!dia.entrada1 || !dia.salida1 || idx === diasSemanaActual.length - 1}
+                              className={cn(
+                                "p-0.5 rounded-md text-xs font-medium transition-colors flex flex-col items-center",
+                                (dia.entrada1 && dia.salida1 && idx !== diasSemanaActual.length - 1) 
+                                  ? "bg-green-100 hover:bg-green-200 text-green-700" 
+                                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              )}
+                              title="Copiar al resto de la semana"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <span className="text-[8px] mt-0.5">Semana</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => copiarAlRestoMes(fechaStr)}
+                              disabled={!dia.entrada1 || !dia.salida1}
+                              className={cn(
+                                "p-0.5 rounded-md text-xs font-medium transition-colors flex flex-col items-center",
+                                (dia.entrada1 && dia.salida1) 
+                                  ? "bg-purple-100 hover:bg-purple-200 text-purple-700" 
+                                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              )}
+                              title="Copiar al resto del mes"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                              </svg>
+                              <span className="text-[8px] mt-0.5">Mes</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-center font-bold text-blue-900 text-base">
+                      
+                      {/* TOTAL */}
+                      <div className="text-center font-bold text-blue-900 text-sm">
                         {dia.total || "0:00"}
                       </div>
+                      
+                      {/* FESTIVOS */}
                       <div className="flex justify-center">
                         {dia.isHoliday ? (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F44E4E] text-white font-bold text-sm">
-                            <AlertCircle className="w-4 h-4" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F44E4E] text-white font-bold text-xs">
+                            <AlertCircle className="w-3 h-3" />
                             Festivo
                           </span>
                         ) : dia.isSunday ? (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F44E4E] text-white font-bold text-sm">
-                            <AlertCircle className="w-4 h-4" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F44E4E] text-white font-bold text-xs">
+                            <AlertCircle className="w-3 h-3" />
                             Domingo
                           </span>
                         ) : null}
