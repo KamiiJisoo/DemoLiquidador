@@ -666,138 +666,106 @@ export default function ControlHorasExtras() {
 
   // Manejar cambio de entrada/salida para ambos turnos
   const handleCambioHora = (fecha: string, tipo: "entrada1" | "salida1" | "entrada2" | "salida2", valor: string) => {
-    setDiasMes((prev) => {
-      const nuevoDiasMes = { ...prev }
-      nuevoDiasMes[fecha] = {
-        ...nuevoDiasMes[fecha],
-        [tipo]: valor,
+    // Crear una copia del estado actual
+    const nuevosDias = { ...diasMes }
+    
+    // Si no existe el día, crearlo
+    if (!nuevosDias[fecha]) {
+      nuevosDias[fecha] = {
+        entrada1: "",
+        salida1: "",
+        entrada2: "",
+        salida2: "",
+        total: "",
+        isHoliday: esDiaFestivo(parse(fecha, 'yyyy-MM-dd', new Date())),
+        isSunday: format(parse(fecha, 'yyyy-MM-dd', new Date()), 'EEEE').toLowerCase() === 'sunday'
       }
-
-      // Solo calcular total si ambos valores son válidos
-      let totalMinutos = 0
+    }
+    
+    // Actualizar el valor correspondiente
+    nuevosDias[fecha] = {
+      ...nuevosDias[fecha],
+      [tipo]: valor
+    }
+    
+    // Calcular total de horas para el día
+    if (
+      nuevosDias[fecha].entrada1 &&
+      nuevosDias[fecha].salida1
+    ) {
       try {
-        // Primer turno
-        if (esHoraValida(nuevoDiasMes[fecha].entrada1) && esHoraValida(nuevoDiasMes[fecha].salida1)) {
-          const horaEntrada1 = parse(nuevoDiasMes[fecha].entrada1, "HH:mm", new Date())
-          let horaSalida1 = parse(nuevoDiasMes[fecha].salida1, "HH:mm", new Date())
-          let minutos1 = differenceInMinutes(horaSalida1, horaEntrada1)
+        let totalMinutos = 0
+        
+        // Calcular minutos del primer turno
+        const entrada1 = formatTime24Hour(nuevosDias[fecha].entrada1)
+        const salida1 = formatTime24Hour(nuevosDias[fecha].salida1)
+        
+        // Verificar si la entrada es mayor que la salida (turno nocturno)
+        if (entrada1 <= salida1) {
+          // Turno normal (mismo día)
+          const horasEntrada1 = parseInt(entrada1.split(':')[0])
+          const minutosEntrada1 = parseInt(entrada1.split(':')[1])
+          const horasSalida1 = parseInt(salida1.split(':')[0])
+          const minutosSalida1 = parseInt(salida1.split(':')[1])
           
-          // Verificar si la entrada es mayor que la salida (día diferente)
-          if (horaEntrada1 > horaSalida1) {
-            const advertencia: AdvertenciaDiaDiferente = {
-              fecha,
-              turno: "1",
-              entrada: nuevoDiasMes[fecha].entrada1,
-              salida: nuevoDiasMes[fecha].salida1
-            };
-            setAdvertenciasDiaDiferente(prev => {
-              const filtered = prev.filter(a => !(a.fecha === fecha && a.turno === "1"));
-              return [...filtered, advertencia];
-            });
-          } else {
-            setAdvertenciasDiaDiferente(prev => prev.filter(a => !(a.fecha === fecha && a.turno === "1")));
-          }
+          const minutosTotales1 = (horasSalida1 * 60 + minutosSalida1) - (horasEntrada1 * 60 + minutosEntrada1)
+          totalMinutos += minutosTotales1
+        } else {
+          // Turno nocturno (pasa al día siguiente)
+          const horasEntrada1 = parseInt(entrada1.split(':')[0])
+          const minutosEntrada1 = parseInt(entrada1.split(':')[1])
+          const horasSalida1 = parseInt(salida1.split(':')[0]) + 24 // Añadir 24 horas
+          const minutosSalida1 = parseInt(salida1.split(':')[1])
           
-          if (minutos1 < 0) minutos1 = minutos1 + 24 * 60 // Ajustar si pasa a otro día
-          totalMinutos += minutos1
+          const minutosTotales1 = (horasSalida1 * 60 + minutosSalida1) - (horasEntrada1 * 60 + minutosEntrada1)
+          totalMinutos += minutosTotales1
         }
-        // Segundo turno
-        if (esHoraValida(nuevoDiasMes[fecha].entrada2) && esHoraValida(nuevoDiasMes[fecha].salida2)) {
-          const horaEntrada2 = parse(nuevoDiasMes[fecha].entrada2, "HH:mm", new Date())
-          let horaSalida2 = parse(nuevoDiasMes[fecha].salida2, "HH:mm", new Date())
-          let minutos2 = differenceInMinutes(horaSalida2, horaEntrada2)
+        
+        // Si hay segundo turno, calcular minutos
+        if (nuevosDias[fecha].entrada2 && nuevosDias[fecha].salida2) {
+          const entrada2 = formatTime24Hour(nuevosDias[fecha].entrada2)
+          const salida2 = formatTime24Hour(nuevosDias[fecha].salida2)
           
-          // Verificar si la entrada es mayor que la salida (día diferente)
-          if (horaEntrada2 > horaSalida2) {
-            const advertencia: AdvertenciaDiaDiferente = {
-              fecha,
-              turno: "2",
-              entrada: nuevoDiasMes[fecha].entrada2,
-              salida: nuevoDiasMes[fecha].salida2
-            };
-            setAdvertenciasDiaDiferente(prev => {
-              const filtered = prev.filter(a => !(a.fecha === fecha && a.turno === "2"));
-              return [...filtered, advertencia];
-            });
+          // Verificar si la entrada es mayor que la salida (turno nocturno)
+          if (entrada2 <= salida2) {
+            // Turno normal (mismo día)
+            const horasEntrada2 = parseInt(entrada2.split(':')[0])
+            const minutosEntrada2 = parseInt(entrada2.split(':')[1])
+            const horasSalida2 = parseInt(salida2.split(':')[0])
+            const minutosSalida2 = parseInt(salida2.split(':')[1])
+            
+            const minutosTotales2 = (horasSalida2 * 60 + minutosSalida2) - (horasEntrada2 * 60 + minutosEntrada2)
+            totalMinutos += minutosTotales2
           } else {
-            setAdvertenciasDiaDiferente(prev => prev.filter(a => !(a.fecha === fecha && a.turno === "2")));
+            // Turno nocturno (pasa al día siguiente)
+            const horasEntrada2 = parseInt(entrada2.split(':')[0])
+            const minutosEntrada2 = parseInt(entrada2.split(':')[1])
+            const horasSalida2 = parseInt(salida2.split(':')[0]) + 24 // Añadir 24 horas
+            const minutosSalida2 = parseInt(salida2.split(':')[1])
+            
+            const minutosTotales2 = (horasSalida2 * 60 + minutosSalida2) - (horasEntrada2 * 60 + minutosEntrada2)
+            totalMinutos += minutosTotales2
           }
-          
-          if (minutos2 < 0) minutos2 = minutos2 + 24 * 60 // Ajustar si pasa a otro día
-          totalMinutos += minutos2
         }
-        // Convertir minutos totales a horas y minutos
+        
+        // Formatear el total de horas
         const horas = Math.floor(totalMinutos / 60)
         const minutos = totalMinutos % 60
-        nuevoDiasMes[fecha].total = totalMinutos > 0 ? `${horas}:${minutos.toString().padStart(2, '0')}` : ""
+        nuevosDias[fecha].total = `${horas}:${minutos.toString().padStart(2, '0')}`
+        
       } catch (error) {
-        nuevoDiasMes[fecha].total = "Error"
+        console.error("Error al calcular horas:", error)
+        nuevosDias[fecha].total = "Error"
       }
-
-      // Actualizar camposConError inmediatamente
-      const camposError: {[key: string]: string[]} = { ...camposConError } // Copiar el estado actual
-      let erroresActuales: string[] = [] // Resetear errores para la fecha actual
-
-      // Validación de turnos incompletos
-      if (nuevoDiasMes[fecha].entrada1 && !nuevoDiasMes[fecha].salida1) {
-        erroresActuales.push('salida1')
-      }
-      if (!nuevoDiasMes[fecha].entrada1 && nuevoDiasMes[fecha].salida1) {
-        erroresActuales.push('entrada1')
-      }
-      if (nuevoDiasMes[fecha].entrada2 && !nuevoDiasMes[fecha].salida2) {
-        erroresActuales.push('salida2')
-      }
-      if (!nuevoDiasMes[fecha].entrada2 && nuevoDiasMes[fecha].salida2) {
-        erroresActuales.push('entrada2')
-      }
-
-      // Validación de solapamiento de horarios (solo si hay datos en ambos turnos)
-      const e1 = nuevoDiasMes[fecha].entrada1
-      const s1 = nuevoDiasMes[fecha].salida1
-      const e2 = nuevoDiasMes[fecha].entrada2
-      const s2 = nuevoDiasMes[fecha].salida2
-
-      if (esHoraValida(e1) && esHoraValida(s1) && esHoraValida(e2) && esHoraValida(s2)) {
-        const horaEntrada1 = parse(e1, "HH:mm", new Date())
-        let horaSalida1 = parse(s1, "HH:mm", new Date())
-        const horaEntrada2 = parse(e2, "HH:mm", new Date())
-        let horaSalida2 = parse(s2, "HH:mm", new Date())
-
-        // Ajustar horaSalida si cruza la medianoche para el cálculo de solapamiento
-        if (horaSalida1 < horaEntrada1) horaSalida1 = addDays(horaSalida1, 1)
-        if (horaSalida2 < horaEntrada2) horaSalida2 = addDays(horaSalida2, 1)
-
-        // Validar que Entrada < Salida para cada turno individualmente
-        if (isAfter(horaEntrada1, horaSalida1)) erroresActuales.push('entrada1', 'salida1')
-        if (isAfter(horaEntrada2, horaSalida2)) erroresActuales.push('entrada2', 'salida2')
-
-        // Comprobar solapamiento: (e1 < s2 && e2 < s1) siempre que s1 !== e2
-        // No debe haber solapamiento entre el primer y segundo turno, excepto si salida1 === entrada2
-        const overlap = (isBefore(horaEntrada1, horaSalida2) && isBefore(horaEntrada2, horaSalida1))
-
-        if (overlap && !(s1 === e2)) {
-          // Si hay solapamiento y no es por continuidad (salida1 == entrada2)
-          if (!erroresActuales.includes('entrada1')) erroresActuales.push('entrada1')
-          if (!erroresActuales.includes('salida1')) erroresActuales.push('salida1')
-          if (!erroresActuales.includes('entrada2')) erroresActuales.push('entrada2')
-          if (!erroresActuales.includes('salida2')) erroresActuales.push('salida2')
-        }
-
-        // Validar que no haya duplicidad dentro del mismo turno (Entrada1 no debe ser igual a Salida1, etc. ) 
-        if(e1 === s1 && e1 !== '') erroresActuales.push('entrada1', 'salida1')
-        if(e2 === s2 && e2 !== '') erroresActuales.push('entrada2', 'salida2')
-      }
-
-      if (erroresActuales.length > 0) {
-        camposError[fecha] = erroresActuales.filter((value, index, self) => self.indexOf(value) === index)
-      } else {
-        delete camposError[fecha]
-      }
-      setCamposConError(camposError)
-
-      return nuevoDiasMes
-    })
+    } else {
+      nuevosDias[fecha].total = ""
+    }
+    
+    // Actualizar el estado
+    setDiasMes(nuevosDias)
+    
+    // Verificar advertencias de día diferente
+    verificarAdvertenciasDiaDiferente(fecha, nuevosDias[fecha])
   }
 
   // Manejar cambio de fecha
@@ -845,8 +813,8 @@ export default function ControlHorasExtras() {
         let horaSalida2 = parse(s2, "HH:mm", new Date())
 
         // Ajustar horaSalida si cruza la medianoche
-        if (isBefore(horaSalida1, horaEntrada1)) horaSalida1 = addDays(horaSalida1, 1)
-        if (isBefore(horaSalida2, horaEntrada2)) horaSalida2 = addDays(horaSalida2, 1)
+        if (horaSalida1 < horaEntrada1) horaSalida1 = addDays(horaSalida1, 1)
+        if (horaSalida2 < horaEntrada2) horaSalida2 = addDays(horaSalida2, 1)
 
         // Validar que Entrada < Salida para cada turno individualmente
         if (isAfter(horaEntrada1, horaSalida1)) erroresFechaActual.push('Turno 1: Entrada después de Salida')
@@ -1069,6 +1037,9 @@ export default function ControlHorasExtras() {
       
       // Actualizar estado
       setDiasMes(nuevosDias)
+      
+      // Verificar advertencias para el día siguiente
+      verificarAdvertenciasDiaDiferente(fechaSiguiente, nuevosDias[fechaSiguiente])
     }
   }
 
@@ -1107,6 +1078,9 @@ export default function ControlHorasExtras() {
           isHoliday: nuevosDias[fechaDestino]?.isHoliday || false,
           isSunday: nuevosDias[fechaDestino]?.isSunday || false
         }
+        
+        // Verificar advertencias para cada día copiado
+        verificarAdvertenciasDiaDiferente(fechaDestino, nuevosDias[fechaDestino])
       }
     }
     
@@ -1144,11 +1118,56 @@ export default function ControlHorasExtras() {
         isSunday: nuevosDias[fechaDestino]?.isSunday || false
       }
       
+      // Verificar advertencias para cada día copiado
+      verificarAdvertenciasDiaDiferente(fechaDestino, nuevosDias[fechaDestino])
+      
       diaIterador = addDays(diaIterador, 1)
     }
     
     // Actualizar estado
     setDiasMes(nuevosDias)
+  }
+
+  // Función para verificar advertencias de día diferente
+  const verificarAdvertenciasDiaDiferente = (fechaStr: string, dia: DiaData) => {
+    // Eliminar advertencias existentes para esta fecha
+    const nuevasAdvertencias = [...advertenciasDiaDiferente.filter(adv => adv.fecha !== fechaStr)]
+    
+    // Verificar turno 1
+    if (dia.entrada1 && dia.salida1) {
+      const entrada1 = formatTime24Hour(dia.entrada1)
+      const salida1 = formatTime24Hour(dia.salida1)
+      
+      if (entrada1 > salida1) {
+        nuevasAdvertencias.push({
+          fecha: fechaStr,
+          turno: "1",
+          entrada: entrada1,
+          salida: salida1
+        })
+      }
+    }
+    
+    // Verificar turno 2
+    if (dia.entrada2 && dia.salida2) {
+      const entrada2 = formatTime24Hour(dia.entrada2)
+      const salida2 = formatTime24Hour(dia.salida2)
+      
+      if (entrada2 > salida2) {
+        nuevasAdvertencias.push({
+          fecha: fechaStr,
+          turno: "2",
+          entrada: entrada2,
+          salida: salida2
+        })
+      }
+    }
+    
+    // Actualizar el estado con todas las advertencias
+    setAdvertenciasDiaDiferente(nuevasAdvertencias)
+    
+    // Retornar las nuevas advertencias para esta fecha específica
+    return nuevasAdvertencias.filter(adv => adv.fecha === fechaStr)
   }
 
   // Función para generar hash de la contraseña
@@ -1285,6 +1304,94 @@ export default function ControlHorasExtras() {
     }
   }, [semanaActual, camposConError, diasSemanaActual, hasErrorsInCurrentWeek])
 
+  // Efecto para verificar advertencias cuando cambia el estado de diasMes
+  useEffect(() => {
+    // Crear un array para almacenar todas las advertencias
+    const todasLasAdvertencias: AdvertenciaDiaDiferente[] = []
+    // Crear un objeto para almacenar los campos con error
+    const nuevosCamposConError: {[key: string]: string[]} = {}
+
+    // Verificar cada día del mes
+    Object.entries(diasMes).forEach(([fechaStr, dia]) => {
+      const erroresFecha: string[] = []
+      
+      // Verificar turno 1
+      if (dia.entrada1 && dia.salida1) {
+        const entrada1 = formatTime24Hour(dia.entrada1)
+        const salida1 = formatTime24Hour(dia.salida1)
+        
+        if (entrada1 > salida1) {
+          todasLasAdvertencias.push({
+            fecha: fechaStr,
+            turno: "1",
+            entrada: entrada1,
+            salida: salida1
+          })
+        }
+      }
+      
+      // Verificar turno 2
+      if (dia.entrada2 && dia.salida2) {
+        const entrada2 = formatTime24Hour(dia.entrada2)
+        const salida2 = formatTime24Hour(dia.salida2)
+        
+        if (entrada2 > salida2) {
+          todasLasAdvertencias.push({
+            fecha: fechaStr,
+            turno: "2",
+            entrada: entrada2,
+            salida: salida2
+          })
+        }
+      }
+      
+      // Verificar solapamiento entre turnos
+      if (dia.entrada1 && dia.salida1 && dia.entrada2 && dia.salida2) {
+        const entrada1 = formatTime24Hour(dia.entrada1)
+        const salida1 = formatTime24Hour(dia.salida1)
+        const entrada2 = formatTime24Hour(dia.entrada2)
+        const salida2 = formatTime24Hour(dia.salida2)
+        
+        // Convertir a objetos Date para facilitar la comparación
+        const fechaBase = parse(fechaStr, 'yyyy-MM-dd', new Date())
+        let horaEntrada1 = parse(entrada1, 'HH:mm', fechaBase)
+        let horaSalida1 = parse(salida1, 'HH:mm', fechaBase)
+        let horaEntrada2 = parse(entrada2, 'HH:mm', fechaBase)
+        let horaSalida2 = parse(salida2, 'HH:mm', fechaBase)
+        
+        // Ajustar si cruza la medianoche
+        if (entrada1 > salida1) {
+          horaSalida1 = addDays(horaSalida1, 1)
+        }
+        if (entrada2 > salida2) {
+          horaSalida2 = addDays(horaSalida2, 1)
+        }
+        
+        // Verificar solapamiento: (e1 < s2 && e2 < s1)
+        const haySolapamiento = (
+          isBefore(horaEntrada1, horaSalida2) && 
+          isBefore(horaEntrada2, horaSalida1) &&
+          // Excluir el caso donde la salida1 es igual a entrada2 (turnos consecutivos)
+          !(salida1 === entrada2)
+        )
+        
+        if (haySolapamiento) {
+          erroresFecha.push('entrada1', 'salida1', 'entrada2', 'salida2')
+        }
+      }
+      
+      // Si hay errores para esta fecha, guardarlos
+      if (erroresFecha.length > 0) {
+        nuevosCamposConError[fechaStr] = erroresFecha
+      }
+    })
+    
+    // Actualizar el estado con todas las advertencias
+    setAdvertenciasDiaDiferente(todasLasAdvertencias)
+    // Actualizar el estado de los campos con error
+    setCamposConError(nuevosCamposConError)
+  }, [diasMes])
+
   return (
     <div className="container mx-auto py-8 flex flex-col gap-8">
       {/* Navegación de pestañas */}
@@ -1408,6 +1515,31 @@ export default function ControlHorasExtras() {
                       lo que indica que el turno se extiende hasta el día siguiente. Si esto es correcto, puede ignorar esta advertencia.
                     </p>
                   </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Advertencias de solapamiento de horarios */}
+          {Object.keys(camposConError).length > 0 && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <h3 className="text-lg font-semibold text-red-800 mb-2 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                Advertencias de solapamiento de horarios
+              </h3>
+              <div className="space-y-2">
+                {Object.entries(camposConError).map(([fecha, errores]) => (
+                  errores.includes('entrada1') && errores.includes('entrada2') && (
+                    <div key={fecha} className="text-red-700">
+                      <p>
+                        <span className="font-medium">
+                          {format(parseISO(fecha), 'dd/MM/yyyy')}:
+                        </span>
+                        {" "}Se ha detectado un solapamiento entre el primer y segundo turno.
+                        Los turnos no deben solaparse en el tiempo. Por favor, revise y ajuste los horarios.
+                      </p>
+                    </div>
+                  )
                 ))}
               </div>
             </div>
