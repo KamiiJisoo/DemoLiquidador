@@ -1964,7 +1964,7 @@ export default function ControlHorasExtras() {
             }
           }}
         >
-          Gestión de Cargos
+          Administración
         </button>
       </div>
       {/* Registro de Horas */}
