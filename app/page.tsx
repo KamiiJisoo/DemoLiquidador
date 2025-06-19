@@ -518,6 +518,15 @@ export default function ControlHorasExtras() {
   const [nuevoCargo, setNuevoCargo] = useState("");
   const [nuevoSalario, setNuevoSalario] = useState("");
 
+  // Variables para la gestión de festivos
+  const [añoSeleccionado, setAñoSeleccionado] = useState<string>(new Date().getFullYear().toString());
+  const [festivosPorAño, setFestivosPorAño] = useState<Array<{ id: number; fecha: string; nombre: string; tipo: 'FIJO' | 'MOVIL' }>>([]);
+  const [nuevoFestivoFecha, setNuevoFestivoFecha] = useState<Date | null>(new Date());
+  const [nuevoFestivoNombre, setNuevoFestivoNombre] = useState("");
+  const [nuevoFestivoTipo, setNuevoFestivoTipo] = useState<'FIJO' | 'MOVIL'>('FIJO');
+  const [errorFestivo, setErrorFestivo] = useState<string>("");
+  const [showFestivoDatePicker, setShowFestivoDatePicker] = useState(false);
+
   useEffect(() => {
     console.log('Registering access...');
     fetch('/api/registrar-acceso', { method: 'POST' });
@@ -1821,6 +1830,109 @@ export default function ControlHorasExtras() {
     return differenceInMinutes(solapamientoFin, solapamientoInicio);
   };
 
+  // Funciones para la gestión de festivos
+  const fetchFestivosPorAño = useCallback(async (año: string) => {
+    try {
+      const res = await fetch(`/api/festivos?año=${año}`);
+      if (!res.ok) {
+        throw new Error('Error al obtener los festivos');
+      }
+      const data = await res.json();
+      if (data && Array.isArray(data.festivos)) {
+        setFestivosPorAño(data.festivos);
+      } else {
+        setFestivosPorAño([]);
+      }
+    } catch (err: any) {
+      console.error('Error al obtener festivos:', err);
+      setErrorFestivo(err.message || 'Error al obtener los festivos');
+    }
+  }, []);
+  
+  useEffect(() => {
+    fetchFestivosPorAño(añoSeleccionado);
+  }, [añoSeleccionado, fetchFestivosPorAño]);
+  
+  const handleCambioAñoFestivos = (año: string) => {
+    setAñoSeleccionado(año);
+  };
+  
+  const handleSubmitFestivo = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    try {
+      if (!nuevoFestivoFecha || !nuevoFestivoNombre.trim() || !nuevoFestivoTipo) {
+        setErrorFestivo('Todos los campos son requeridos');
+        return;
+      }
+      
+      const fechaFormateada = format(nuevoFestivoFecha, 'yyyy-MM-dd');
+      
+      const res = await fetch('/api/festivos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fecha: fechaFormateada,
+          nombre: nuevoFestivoNombre,
+          tipo: nuevoFestivoTipo
+        })
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const errorMessage = errorData?.error || 'Error al crear festivo';
+        throw new Error(errorMessage);
+      }
+      
+      setNuevoFestivoFecha(new Date());
+      setNuevoFestivoNombre("");
+      setErrorFestivo("");
+      fetchFestivosPorAño(añoSeleccionado);
+      
+    } catch (err: any) {
+      console.error('Error al agregar festivo:', err);
+      setErrorFestivo(err.message || 'Error al agregar el festivo');
+    }
+  };
+  
+  const handleEliminarFestivo = async (fecha: string) => {
+    try {
+      console.log('Eliminando festivo con fecha:', fecha);
+      
+      if (!fecha) {
+        console.error('Fecha no válida');
+        setErrorFestivo('Fecha no válida');
+        return;
+      }
+      
+      // Asegurarse de que la fecha esté en formato yyyy-MM-dd
+      const fechaFormateada = format(new Date(fecha), 'yyyy-MM-dd');
+      console.log('Fecha formateada:', fechaFormateada);
+      
+      const res = await fetch(`/api/festivos?fecha=${fechaFormateada}`, {
+        method: 'DELETE'
+      });
+      
+      console.log('Respuesta del servidor:', res.status, res.statusText);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        console.error('Error data:', errorData);
+        const errorMessage = errorData?.error || 'Error al eliminar festivo';
+        throw new Error(errorMessage);
+      }
+      
+      const responseData = await res.json();
+      console.log('Respuesta exitosa:', responseData);
+      
+      setErrorFestivo("");
+      fetchFestivosPorAño(añoSeleccionado);
+      
+    } catch (err: any) {
+      console.error('Error al eliminar festivo:', err);
+      setErrorFestivo(err.message || 'Error al eliminar el festivo');
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 flex flex-col gap-8">
       {/* Modal de autenticación */}
@@ -2409,6 +2521,23 @@ export default function ControlHorasExtras() {
       {/* Gestión de Cargos */}
       {tab === 'gestion-cargos' && autenticadoGestionCargos && (
         <section className="flex flex-col gap-6 w-full">
+          {/* Pestañas para Cargos y Festivos */}
+          <div className="bg-gray-100 rounded-xl p-2 flex mb-2">
+            <button
+              className={`px-6 py-2 rounded-md font-bold transition-colors ${tab === 'gestion-cargos' ? 'bg-white text-black shadow' : 'text-gray-500'}`}
+              onClick={() => {}}
+            >
+              Gestión de Cargos
+            </button>
+            <button
+              className={`px-6 py-2 rounded-md font-bold transition-colors text-gray-500`}
+              onClick={() => {}}
+            >
+              Gestión de Festivos
+            </button>
+          </div>
+          
+          {/* Sección de Cargos */}
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center gap-3 mb-6">
               <svg
@@ -2562,6 +2691,150 @@ export default function ControlHorasExtras() {
                 ))
               ) : (
                 <p className="text-gray-500 text-center py-4">No hay cargos registrados</p>
+              )}
+            </div>
+          </div>
+          
+          {/* Sección de Festivos */}
+          <div className="bg-white rounded-xl shadow-md p-6 mt-8">
+            <div className="flex items-center gap-3 mb-6">
+              <Calendar className="w-6 h-6 text-red-500" />
+              <h2 className="text-2xl font-bold text-gray-900">Gestión de Festivos</h2>
+            </div>
+            
+            <div className="mb-6">
+              <Label htmlFor="añoFestivos" className="mb-2 block">Seleccionar Año</Label>
+              <Select value={añoSeleccionado} onValueChange={handleCambioAñoFestivos}>
+                <SelectTrigger id="añoFestivos" className="w-full md:w-48">
+                  <SelectValue placeholder="Seleccionar año" />
+                </SelectTrigger>
+                <SelectContent className="bg-white shadow-lg border border-gray-200 z-50">
+                  {Array.from({ length: 20 }, (_, i) => new Date().getFullYear() - 5 + i).map((año) => (
+                    <SelectItem key={año} value={año.toString()}>
+                      {año}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <form onSubmit={handleSubmitFestivo} className="mb-8 bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <h3 className="font-semibold text-lg mb-4">Agregar Nuevo Festivo</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="nuevoFestivoFecha">Fecha</Label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 w-full"
+                      onClick={() => setShowFestivoDatePicker(true)}
+                    >
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <span>
+                        {nuevoFestivoFecha 
+                          ? format(nuevoFestivoFecha, "dd/MM/yyyy") 
+                          : "Seleccionar fecha"}
+                      </span>
+                    </button>
+                    {showFestivoDatePicker && (
+                      <div className="absolute left-0 top-full mt-2 bg-white rounded-xl shadow-lg z-30">
+                        <DatePicker
+                          selected={nuevoFestivoFecha}
+                          onChange={(date: Date | null) => {
+                            setNuevoFestivoFecha(date);
+                            setShowFestivoDatePicker(false);
+                          }}
+                          onClickOutside={() => setShowFestivoDatePicker(false)}
+                          dateFormat="dd/MM/yyyy"
+                          inline
+                          locale={es}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="nuevoFestivoNombre">Nombre</Label>
+                  <Input
+                    id="nuevoFestivoNombre"
+                    value={nuevoFestivoNombre}
+                    onChange={(e) => setNuevoFestivoNombre(e.target.value)}
+                    placeholder="Nombre del festivo"
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nuevoFestivoTipo">Tipo</Label>
+                  <Select 
+                    value={nuevoFestivoTipo} 
+                    onValueChange={(value) => setNuevoFestivoTipo(value as 'FIJO' | 'MOVIL')}
+                  >
+                    <SelectTrigger id="nuevoFestivoTipo" className="w-full">
+                      <SelectValue placeholder="Seleccionar tipo" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white shadow-lg border border-gray-200 z-50">
+                      <SelectItem value="FIJO">Fijo</SelectItem>
+                      <SelectItem value="MOVIL">Móvil</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="mt-4">
+                <Button type="submit" className="bg-red-500 hover:bg-red-600">
+                  Agregar Festivo
+                </Button>
+              </div>
+              
+              {errorFestivo && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4" role="alert">
+                  <strong className="font-bold">Error: </strong>
+                  <span className="block sm:inline">{errorFestivo}</span>
+                </div>
+              )}
+            </form>
+            
+            <div>
+              <h3 className="font-semibold text-lg mb-4">Festivos del año {añoSeleccionado}</h3>
+              
+              {festivosPorAño.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {festivosPorAño.map((festivo) => (
+                        <tr key={festivo.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {format(new Date(festivo.fecha), "dd/MM/yyyy")}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {festivo.nombre}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {festivo.tipo === 'FIJO' ? 'Fijo' : 'Móvil'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleEliminarFestivo(festivo.fecha)}
+                            >
+                              Eliminar
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No hay festivos registrados para el año {añoSeleccionado}</p>
               )}
             </div>
           </div>

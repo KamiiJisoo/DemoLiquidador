@@ -185,7 +185,19 @@ export async function obtenerFestivosPorAño(año: number) {
 export async function eliminarFestivo(fecha: string) {
   const pool = await connectToDatabase();
   try {
+    console.log('Eliminando festivo en la base de datos con fecha:', fecha);
+    
+    // Primero intentamos encontrar el festivo
+    const [festivos]: any = await pool.execute('SELECT * FROM festivos WHERE fecha = ?', [fecha]);
+    console.log('Festivos encontrados:', festivos);
+    
+    if (festivos.length === 0) {
+      console.error('No se encontró ningún festivo con la fecha:', fecha);
+      return { affectedRows: 0 };
+    }
+    
     const [result]: any = await pool.execute('DELETE FROM festivos WHERE fecha = ?', [fecha]);
+    console.log('Resultado de la eliminación:', result);
     return result;
   } catch (error) {
     console.error('Error al eliminar festivo:', error);
