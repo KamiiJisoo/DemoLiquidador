@@ -499,6 +499,7 @@ export default function ControlHorasExtras() {
   const inputCargoRef = useRef<HTMLInputElement>(null)
   const inputSalarioRef = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState<'registro' | 'calculos' | 'gestion-cargos'>('registro')
+  const [autenticadoGestionCargos, setAutenticadoGestionCargos] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [topeFecha, setTopeFecha] = useState<string | null>(null)
   const [topeHora, setTopeHora] = useState<string | null>(null)
@@ -1289,12 +1290,19 @@ export default function ControlHorasExtras() {
   // Función para manejar la autenticación
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault()
+    // Hash para "AdminBomberos2025"
+    const correctHash = "261d09646a120661f8002b5bf8e4c2c30dc04bd462bae895315635f0a8c115df"
     const hashedPassword = generateHash(password)
-    const correctHash = generateHash("AdminBomberos2025")
+    
+    console.log("Contraseña ingresada:", password)
+    console.log("Hash generado:", hashedPassword)
+    console.log("Hash correcto:", correctHash)
+    console.log("¿Coinciden?", hashedPassword === correctHash)
     
     if (hashedPassword === correctHash) {
       setMostrarModalAuth(false)
-      setMostrarModalCargos(true)
+      setAutenticadoGestionCargos(true)
+      setTab('gestion-cargos')
       setPassword("")
       setErrorAuth("")
     } else {
@@ -1815,6 +1823,9 @@ export default function ControlHorasExtras() {
 
   return (
     <div className="container mx-auto py-8 flex flex-col gap-8">
+      {/* Modal de autenticación */}
+      {mostrarModalAuth && <ModalAuth />}
+      
       {/* Navegación de pestañas */}
       <div className="bg-gray-100 rounded-xl p-2 flex mb-6">
         <button
@@ -1831,7 +1842,15 @@ export default function ControlHorasExtras() {
         </button>
         <button
           className={`px-8 py-2 rounded-md font-bold transition-colors ${tab === 'gestion-cargos' ? 'bg-white text-black shadow' : 'text-gray-500'}`}
-          onClick={() => setTab('gestion-cargos')}
+          onClick={() => {
+            if (!autenticadoGestionCargos) {
+              setMostrarModalAuth(true);
+              setPassword("");
+              setErrorAuth("");
+            } else {
+              setTab('gestion-cargos');
+            }
+          }}
         >
           Gestión de Cargos
         </button>
@@ -1839,7 +1858,6 @@ export default function ControlHorasExtras() {
       {/* Registro de Horas */}
       {tab === 'registro' && (
         <>
-          {mostrarModalAuth && <ModalAuth />}
           {mostrarModalCargos && (
             <ModalGestionCargos
               onClose={() => setMostrarModalCargos(false)}
@@ -2263,7 +2281,6 @@ export default function ControlHorasExtras() {
       {/* Cálculos y Reportes */}
       {tab === 'calculos' && (
         <>
-          {mostrarModalAuth && <ModalAuth />}
           {/* Resumen y cálculos */}
           <section className="flex flex-col items-center gap-8 w-full">
             <div className="w-full flex flex-col md:flex-row gap-6">
@@ -2390,7 +2407,7 @@ export default function ControlHorasExtras() {
         </>
       )}
       {/* Gestión de Cargos */}
-      {tab === 'gestion-cargos' && (
+      {tab === 'gestion-cargos' && autenticadoGestionCargos && (
         <section className="flex flex-col gap-6 w-full">
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex items-center gap-3 mb-6">
