@@ -15,9 +15,12 @@ interface Cargo {
 
 interface ModalGestionCargosProps {
   onClose: () => void;
+  cargos?: Array<{ id: number; nombre: string; salario: number }>;
+  fetchCargos: () => Promise<void>;
+  cargoSeleccionado: string;
 }
 
-const ModalGestionCargos: React.FC<ModalGestionCargosProps> = ({ onClose }) => {
+const ModalGestionCargos: React.FC<ModalGestionCargosProps> = ({ onClose, cargos: cargosProp, fetchCargos, cargoSeleccionado }) => {
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [editandoCargo, setEditandoCargo] = useState<string | null>(null);
   const [valorEditando, setValorEditando] = useState("");
@@ -25,9 +28,12 @@ const ModalGestionCargos: React.FC<ModalGestionCargosProps> = ({ onClose }) => {
   const [nuevoCargoInput, setNuevoCargoInput] = useState("");
   const [nuevoSalarioInput, setNuevoSalarioInput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  
+  // Determinar si es modal o página completa
+  const isModal = onClose.toString() !== '() => {}';
 
   // Helper function to fetch cargos
-  const fetchCargos = async () => {
+  const fetchCargosLocal = async () => {
     try {
       const res = await fetch('/api/cargos');
       const data = await res.json();
@@ -41,8 +47,12 @@ const ModalGestionCargos: React.FC<ModalGestionCargosProps> = ({ onClose }) => {
 
   // Fetch cargos on component mount
   useEffect(() => {
-    fetchCargos();
-  }, []);
+    if (cargosProp) {
+      setCargos(cargosProp);
+    } else {
+      fetchCargosLocal();
+    }
+  }, [cargosProp]);
 
   const handleGuardarEdicion = async (cargoId: number): Promise<void> => {
     console.log('Attempting to save edited cargo:', cargoId);
@@ -138,141 +148,156 @@ const ModalGestionCargos: React.FC<ModalGestionCargosProps> = ({ onClose }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-        >
-          <X className="h-6 w-6" />
-        </button>
+  // Contenido del componente
+  const content = (
+    <>
+      {!isModal && <h2 className="text-2xl font-bold mb-6 text-gray-900">Gestión de Cargos</h2>}
 
-        <h2 className="text-2xl font-bold mb-6 text-gray-900">Gestión de Cargos</h2>
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <form onSubmit={handleSubmitCargo} className="mb-8">
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
-            <div className="flex-1">
-              <Label htmlFor="nuevoCargo">Nuevo Cargo</Label>
-              <Input
-                id="nuevoCargo"
-                value={nuevoCargoInput}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setNuevoCargoInput(e.target.value)}
-                placeholder="Ingrese el nombre del cargo"
-                className="w-full"
-              />
-            </div>
-            <div className="flex-1">
-              <Label htmlFor="nuevoSalario">Salario Base</Label>
-              <Input
-                id="nuevoSalario"
-                type="number"
-                value={nuevoSalarioInput}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setNuevoSalarioInput(e.target.value)}
-                placeholder="Ingrese el salario base"
-                className="w-full"
-              />
-            </div>
+      <form onSubmit={handleSubmitCargo} className="mb-8">
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
+          <div className="flex-1">
+            <Label htmlFor="nuevoCargo">Nuevo Cargo</Label>
+            <Input
+              id="nuevoCargo"
+              value={nuevoCargoInput}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setNuevoCargoInput(e.target.value.toUpperCase())}
+              placeholder="Ingrese el nombre del cargo"
+              className="w-full"
+            />
           </div>
-          <Button type="submit" className="w-full md:w-auto">
-            Agregar Cargo
-          </Button>
-        </form>
+          <div className="flex-1">
+            <Label htmlFor="nuevoSalario">Salario Base</Label>
+            <Input
+              id="nuevoSalario"
+              type="number"
+              value={nuevoSalarioInput}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setNuevoSalarioInput(e.target.value)}
+              placeholder="Ingrese el salario base"
+              className="w-full"
+            />
+          </div>
+        </div>
+        <Button type="submit" className="w-full md:w-auto bg-red-500 hover:bg-red-600">
+          Agregar Cargo
+        </Button>
+      </form>
 
-        <div className="space-y-4">
-          {Array.isArray(cargos) && cargos.map((cargo) => (
-            <Card key={cargo.id} className="p-4">
-              {editandoCargo === cargo.id.toString() ? (
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <Label htmlFor={`editCargo-${cargo.id}`}>Nombre</Label>
-                    <Input
-                      id={`editCargo-${cargo.id}`}
-                      value={valorEditando}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setValorEditando(e.target.value)}
-                      onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleGuardarEdicion(cargo.id);
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Label htmlFor={`editSalario-${cargo.id}`}>Salario</Label>
-                    <Input
-                      id={`editSalario-${cargo.id}`}
-                      type="number"
-                      value={editandoSalario}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => setEditandoSalario(e.target.value)}
-                      onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleGuardarEdicion(cargo.id);
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="flex gap-2 mt-4 md:mt-0">
-                    <Button
-                      onClick={() => handleGuardarEdicion(cargo.id)}
-                      className="flex-1"
-                    >
-                      Guardar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setEditandoCargo(null);
-                        setValorEditando("");
-                        setEditandoSalario("");
-                      }}
-                      className="flex-1"
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
+      <div className="space-y-4">
+        {Array.isArray(cargos) && cargos.map((cargo) => (
+          <Card key={cargo.id} className="p-4">
+            {editandoCargo === cargo.id.toString() ? (
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <Label htmlFor={`editCargo-${cargo.id}`}>Nombre</Label>
+                  <Input
+                    id={`editCargo-${cargo.id}`}
+                    value={valorEditando}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setValorEditando(e.target.value.toUpperCase())}
+                    onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleGuardarEdicion(cargo.id);
+                      }
+                    }}
+                  />
                 </div>
-              ) : (
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{cargo.nombre}</h3>
-                    <p className="text-gray-600">Salario Base: ${cargo.salario.toLocaleString()}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setEditandoCargo(cargo.id.toString());
-                        setValorEditando(cargo.nombre);
-                        setEditandoSalario(cargo.salario.toString());
-                      }}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => handleEliminarCargo(cargo.id)}
-                      disabled={false} // Enable delete button
-                    >
-                      Eliminar
-                    </Button>
-                  </div>
+                <div className="flex-1">
+                  <Label htmlFor={`editSalario-${cargo.id}`}>Salario</Label>
+                  <Input
+                    id={`editSalario-${cargo.id}`}
+                    type="number"
+                    value={editandoSalario}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setEditandoSalario(e.target.value)}
+                    onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleGuardarEdicion(cargo.id);
+                      }
+                    }}
+                  />
                 </div>
-              )}
-            </Card>
-          ))}
+                <div className="flex gap-2 mt-4 md:mt-0">
+                  <Button
+                    onClick={() => handleGuardarEdicion(cargo.id)}
+                    className="flex-1"
+                  >
+                    Guardar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditandoCargo(null);
+                      setValorEditando("");
+                      setEditandoSalario("");
+                    }}
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{cargo.nombre}</h3>
+                  <p className="text-gray-600">Salario Base: ${cargo.salario.toLocaleString()}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditandoCargo(cargo.id.toString());
+                      setValorEditando(cargo.nombre);
+                      setEditandoSalario(cargo.salario.toString());
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => {
+                      handleEliminarCargo(cargo.id);
+                    }}
+                    disabled={cargo.nombre === cargoSeleccionado}
+                  >
+                    Eliminar
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        ))}
+      </div>
+    </>
+  );
+
+  // Si es modal, mostrar con el fondo modal
+  if (isModal) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl relative">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          {content}
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Si es página completa, mostrar sin el fondo modal
+  return <div className="w-full">{content}</div>;
 };
 
 export default ModalGestionCargos; 

@@ -498,7 +498,7 @@ export default function ControlHorasExtras() {
   const [focusedInput, setFocusedInput] = useState<{fecha: string, tipo: string} | null>(null)
   const inputCargoRef = useRef<HTMLInputElement>(null)
   const inputSalarioRef = useRef<HTMLInputElement>(null)
-  const [tab, setTab] = useState<'registro' | 'calculos'>('registro')
+  const [tab, setTab] = useState<'registro' | 'calculos' | 'gestion-cargos'>('registro')
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [topeFecha, setTopeFecha] = useState<string | null>(null)
   const [topeHora, setTopeHora] = useState<string | null>(null)
@@ -509,6 +509,13 @@ export default function ControlHorasExtras() {
   const [camposConError, setCamposConError] = useState<{[key: string]: string[]}>({})
   const [hasErrorsInCurrentWeek, setHasErrorsInCurrentWeek] = useState(false)
   const [advertenciasDiaDiferente, setAdvertenciasDiaDiferente] = useState<AdvertenciaDiaDiferente[]>([]);
+  
+  // Variables para la gestión de cargos
+  const [editandoCargo, setEditandoCargo] = useState<string | null>(null);
+  const [valorEditando, setValorEditando] = useState("");
+  const [editandoSalario, setEditandoSalario] = useState("");
+  const [nuevoCargo, setNuevoCargo] = useState("");
+  const [nuevoSalario, setNuevoSalario] = useState("");
 
   useEffect(() => {
     console.log('Registering access...');
@@ -571,6 +578,110 @@ export default function ControlHorasExtras() {
     console.log('useEffect for fetching access logs triggered.');
     fetchAccessLogs();
   }, [fetchAccessLogs]);
+  
+  // Funciones para la gestión de cargos
+  const handleNuevoCargoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('Nuevo Cargo input changed:', e.target.value);
+    const value = e.target.value.toUpperCase()
+    setNuevoCargo(value)
+  };
+
+  const handleNuevoSalarioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('Nuevo Salario input changed:', e.target.value);
+    const value = e.target.value.replace(/[^0-9]/g, '')
+    setNuevoSalario(value)
+  };
+
+  const handleGuardarEdicion = async (cargoId: number) => {
+    try {
+      if (!valorEditando.trim() || !editandoSalario) {
+        setErrorValidacion('El nombre y salario son requeridos');
+        return;
+      }
+
+      const res = await fetch(`/api/cargos/${cargoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          nombre: valorEditando, 
+          salario: Number(editandoSalario) 
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const errorMessage = errorData?.error || 'Error al actualizar cargo';
+        throw new Error(errorMessage);
+      }
+
+      setEditandoCargo(null);
+      setValorEditando("");
+      setEditandoSalario("");
+      setErrorValidacion("");
+
+      fetchCargos();
+
+    } catch (err: any) {
+      console.error('Error al actualizar cargo:', err);
+      setErrorValidacion(err.message || 'Error al actualizar el cargo');
+    }
+  };
+
+  const handleEliminarCargo = async (cargoId: number) => {
+    try {
+      const res = await fetch(`/api/cargos/${cargoId}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const errorMessage = errorData?.error || 'Error al eliminar cargo';
+        throw new Error(errorMessage);
+      }
+
+      setErrorValidacion("");
+
+      fetchCargos();
+
+    } catch (err: any) {
+      console.error('Error al eliminar cargo:', err);
+      setErrorValidacion(err.message || 'Error al eliminar el cargo');
+    }
+  };
+
+  const handleSubmitCargo = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    try {
+      if (!nuevoCargo.trim() || !nuevoSalario) {
+        setErrorValidacion('El nombre y salario son requeridos');
+        return;
+      }
+
+      const res = await fetch('/api/cargos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          nombre: nuevoCargo, 
+          salario: Number(nuevoSalario) 
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const errorMessage = errorData?.error || 'Error al crear cargo';
+        throw new Error(errorMessage);
+      }
+
+      setNuevoCargo("");
+      setNuevoSalario("");
+      setErrorValidacion("");
+      fetchCargos();
+
+    } catch (err: any) {
+      console.error('Error al agregar cargo:', err);
+      setErrorValidacion(err.message || 'Error al agregar el cargo');
+    }
+  };
 
   // Función para formatear minutos a horas:minutos
   const formatTime = (minutos: number) => {
@@ -1718,6 +1829,12 @@ export default function ControlHorasExtras() {
         >
           Cálculos y Reportes
         </button>
+        <button
+          className={`px-8 py-2 rounded-md font-bold transition-colors ${tab === 'gestion-cargos' ? 'bg-white text-black shadow' : 'text-gray-500'}`}
+          onClick={() => setTab('gestion-cargos')}
+        >
+          Gestión de Cargos
+        </button>
       </div>
       {/* Registro de Horas */}
       {tab === 'registro' && (
@@ -2147,14 +2264,6 @@ export default function ControlHorasExtras() {
       {tab === 'calculos' && (
         <>
           {mostrarModalAuth && <ModalAuth />}
-          {mostrarModalCargos && (
-            <ModalGestionCargos
-              onClose={() => setMostrarModalCargos(false)}
-              cargos={cargosState}
-              fetchCargos={fetchCargos}
-              cargoSeleccionado={cargoSeleccionado}
-            />
-          )}
           {/* Resumen y cálculos */}
           <section className="flex flex-col items-center gap-8 w-full">
             <div className="w-full flex flex-col md:flex-row gap-6">
@@ -2196,21 +2305,6 @@ export default function ControlHorasExtras() {
                   <div className="text-xs text-gray-500 font-bold mb-1">Salario mensual</div>
                   <div className="text-2xl font-bold text-black">$ {formatNumberWithSpace(salarioMensual)}</div>
                 </div>
-                <Button
-                  id="btn-gestionar-cargos"
-                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium flex items-center justify-center gap-2"
-                  type="button"
-                  onClick={() => {
-                    setMostrarModalAuth(true)
-                    setPassword("")
-                    setErrorAuth("")
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  Gestionar Cargos
-                </Button>
               </div>
               <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col gap-2 min-w-[260px]">
                 <div className="uppercase text-gray-500 font-bold text-sm mb-2">Resumen</div>
@@ -2294,6 +2388,167 @@ export default function ControlHorasExtras() {
             )}
           </section>
         </>
+      )}
+      {/* Gestión de Cargos */}
+      {tab === 'gestion-cargos' && (
+        <section className="flex flex-col gap-6 w-full">
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-6 h-6 text-red-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                />
+              </svg>
+              <h2 className="text-2xl font-bold text-gray-900">Agregar Nuevo Cargo</h2>
+            </div>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmitCargo(e);
+            }} className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <Label htmlFor="nuevoCargo">Nombre del Cargo</Label>
+                <Input
+                  id="nuevoCargo"
+                  value={nuevoCargo}
+                  onChange={handleNuevoCargoChange}
+                  placeholder="Ingrese el nombre del cargo"
+                  className="w-full"
+                />
+              </div>
+              <div className="flex-1">
+                <Label htmlFor="nuevoSalario">Salario Base</Label>
+                <Input
+                  id="nuevoSalario"
+                  type="number"
+                  value={nuevoSalario}
+                  onChange={handleNuevoSalarioChange}
+                  placeholder="Ingrese el salario base"
+                  className="w-full"
+                />
+              </div>
+              <div className="flex items-end">
+                <Button type="submit" className="bg-red-500 hover:bg-red-600">
+                  Agregar Cargo
+                </Button>
+              </div>
+            </form>
+            
+            {errorValidacion && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4" role="alert">
+                <strong className="font-bold">Error: </strong>
+                <span className="block sm:inline">{errorValidacion}</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <h2 className="text-2xl font-bold text-gray-900">Lista de Cargos</h2>
+            </div>
+            
+            <div className="space-y-4">
+              {Array.isArray(cargosState) && cargosState.length > 0 ? (
+                cargosState.map((cargo) => (
+                  <div key={cargo.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+                    {editandoCargo === cargo.id.toString() ? (
+                      <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1">
+                          <Label htmlFor={`editCargo-${cargo.id}`}>Nombre</Label>
+                          <Input
+                            id={`editCargo-${cargo.id}`}
+                            value={valorEditando}
+                            onChange={(e) => setValorEditando(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleGuardarEdicion(cargo.id);
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label htmlFor={`editSalario-${cargo.id}`}>Salario</Label>
+                          <Input
+                            id={`editSalario-${cargo.id}`}
+                            type="number"
+                            value={editandoSalario}
+                            onChange={(e) => setEditandoSalario(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleGuardarEdicion(cargo.id);
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="flex gap-2 mt-4 md:mt-0 md:items-end">
+                          <Button
+                            onClick={() => handleGuardarEdicion(cargo.id)}
+                            className="flex-1"
+                          >
+                            Guardar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditandoCargo(null);
+                              setValorEditando("");
+                              setEditandoSalario("");
+                            }}
+                            className="flex-1"
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{cargo.nombre}</h3>
+                          <p className="text-gray-600">Salario Base: ${cargo.salario.toLocaleString()}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditandoCargo(cargo.id.toString());
+                              setValorEditando(cargo.nombre);
+                              setEditandoSalario(cargo.salario.toString());
+                            }}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => handleEliminarCargo(cargo.id)}
+                            disabled={cargo.nombre === cargoSeleccionado}
+                          >
+                            Eliminar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">No hay cargos registrados</p>
+              )}
+            </div>
+          </div>
+        </section>
       )}
     </div>
   )
