@@ -2612,7 +2612,7 @@ export default function ControlHorasExtras() {
                 <div className="uppercase text-bomberored-700 font-bold text-base mb-2">Recargos</div>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span>Nocturnas L-V</span>
+                    <span>Nocturnas L-S</span>
                     <span>{formatTime(calculoHoras.horasNocturnasLV)} <span className="text-gray-400">(${formatNumberWithSpace(valorRecargoNocturnoLV)})</span></span>
                   </div>
                   <div className="flex justify-between">
@@ -2632,11 +2632,11 @@ export default function ControlHorasExtras() {
                 <div className="uppercase text-bomberored-700 font-bold text-base mb-2">Horas Extras</div>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span>Extra Diurna L-V</span>
+                    <span>Extra Diurna L-S</span>
                     <span>{formatTime(calculoHoras.horasExtDiurnasLV)} <span className="text-gray-400">(${formatNumberWithSpace(valorExtraDiurnaLV)})</span></span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Extra Nocturna L-V</span>
+                    <span>Extra Nocturna L-S</span>
                     <span>{formatTime(calculoHoras.horasExtNocturnasLV)} <span className="text-gray-400">(${formatNumberWithSpace(valorExtraNocturnaLV)})</span></span>
                   </div>
                   <div className="flex justify-between">
@@ -2659,25 +2659,21 @@ export default function ControlHorasExtras() {
                     <span>Horas Compensatorias</span>
                     <span>{formatTiempoCompensatorio(tiempoCompensatorio)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Valor por Hora</span>
-                    <span>${formatNumberWithSpace(valorHora)}</span>
-                  </div>
                 </div>
                 
                 {/* Desglose del tiempo compensatorio */}
                 {tiempoCompensatorio > 0 && (
                   <div className="mt-2 space-y-2 border-t pt-2 border-gray-100">
-                    <div className="text-sm font-semibold text-gray-700 mb-1">Desglose por tipo:</div>
+                    <div className="text-sm font-semibold text-gray-700 mb-1">Desglose por tipo de hora extra:</div>
                     
                     {/* Siempre mostrar todos los tipos, incluso con valor cero */}
                     <div className="flex justify-between text-sm">
-                      <span>Extra Diurna L-V ({(desgloseCompensatorio.diurnaLV.porcentaje * 100).toFixed(0)}%)</span>
+                      <span>Extra Diurna L-S ({(desgloseCompensatorio.diurnaLV.porcentaje * 100).toFixed(0)}%)</span>
                       <span>{Math.floor(desgloseCompensatorio.diurnaLV.minutos / 60)}h {desgloseCompensatorio.diurnaLV.minutos % 60}m <span className="text-gray-400">(${formatNumberWithSpace(desgloseCompensatorio.diurnaLV.valor)})</span></span>
                     </div>
                     
                     <div className="flex justify-between text-sm">
-                      <span>Extra Nocturna L-V ({(desgloseCompensatorio.nocturnaLV.porcentaje * 100).toFixed(0)}%)</span>
+                      <span>Extra Nocturna L-S ({(desgloseCompensatorio.nocturnaLV.porcentaje * 100).toFixed(0)}%)</span>
                       <span>{Math.floor(desgloseCompensatorio.nocturnaLV.minutos / 60)}h {desgloseCompensatorio.nocturnaLV.minutos % 60}m <span className="text-gray-400">(${formatNumberWithSpace(desgloseCompensatorio.nocturnaLV.valor)})</span></span>
                     </div>
                     
