@@ -1660,6 +1660,31 @@ export default function ControlHorasExtras() {
     return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
   }
 
+  // Función helper para formatear fechas de manera segura
+  const formatFechaSegura = (fecha: string): string => {
+    try {
+      console.log('Formateando fecha:', fecha);
+      
+      // Si la fecha ya está en formato YYYY-MM-DD, convertir a DD/MM/YYYY
+      if (fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = fecha.split('-');
+        const resultado = `${day}/${month}/${year}`;
+        console.log('Fecha formateada:', resultado);
+        return resultado;
+      }
+      
+      // Si la fecha tiene timestamp, tomar solo la parte de fecha
+      const fechaLimpia = fecha.split('T')[0];
+      const [year, month, day] = fechaLimpia.split('-');
+      const resultado = `${day}/${month}/${year}`;
+      console.log('Fecha con timestamp formateada:', resultado);
+      return resultado;
+    } catch (error) {
+      console.error('Error al formatear fecha:', fecha, error);
+      return fecha; // Devolver la fecha original si hay error
+    }
+  }
+
   useEffect(() => {
     const loadFestivos = async () => {
       try {
@@ -1671,11 +1696,12 @@ export default function ControlHorasExtras() {
         }
         const data = await res.json();
         console.log('Fetched raw data:', data); // Log datos crudos
+        console.log('Sample festivo from API:', data.festivos?.[0]); // Log primer festivo
         if (data && Array.isArray(data.festivos)) {
-          // Formatear la fecha de cada festivo a "yyyy-MM-dd"
+          // Asegurar que las fechas estén en formato YYYY-MM-DD
           const formattedFestivos = data.festivos.map((f: { fecha: string | Date; nombre: string; tipo: 'FIJO' | 'MOVIL' }) => ({
             ...f,
-            fecha: format(new Date(f.fecha), "yyyy-MM-dd")
+            fecha: typeof f.fecha === 'string' ? f.fecha.split('T')[0] : format(new Date(f.fecha), "yyyy-MM-dd")
           }));
           setFestivos(formattedFestivos);
           console.log('Holidays loaded successfully. Total:', formattedFestivos.length); // Log éxito y cantidad
@@ -2110,7 +2136,13 @@ export default function ControlHorasExtras() {
       }
       const data = await res.json();
       if (data && Array.isArray(data.festivos)) {
-        setFestivosPorAño(data.festivos);
+        // Asegurar que las fechas estén en formato YYYY-MM-DD
+        const festivosFormateados = data.festivos.map((f: any) => ({
+          ...f,
+          fecha: f.fecha.split('T')[0] // Tomar solo la parte de fecha, sin hora
+        }));
+        console.log('Festivos formateados para año:', festivosFormateados.slice(0, 3));
+        setFestivosPorAño(festivosFormateados);
       } else {
         setFestivosPorAño([]);
       }
@@ -2186,11 +2218,11 @@ export default function ControlHorasExtras() {
         return;
       }
       
-      // Asegurarse de que la fecha esté en formato yyyy-MM-dd
-      const fechaFormateada = format(new Date(fecha), 'yyyy-MM-dd');
-      console.log('Fecha formateada:', fechaFormateada);
+      // La fecha ya viene en formato correcto YYYY-MM-DD desde Supabase
+      const fechaLimpia = fecha.split('T')[0]; // Por si acaso viene con timestamp
+      console.log('Fecha para eliminar:', fechaLimpia);
       
-      const res = await fetch(`/api/festivos?fecha=${fechaFormateada}`, {
+      const res = await fetch(`/api/festivos?fecha=${fechaLimpia}`, {
         method: 'DELETE'
       });
       
@@ -3152,7 +3184,7 @@ export default function ControlHorasExtras() {
                       {festivosPorAño.map((festivo) => (
                         <tr key={festivo.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {format(new Date(festivo.fecha), "dd/MM/yyyy")}
+                            {formatFechaSegura(festivo.fecha)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {festivo.nombre}

@@ -1,4 +1,4 @@
-import { agregarFestivo, connectToDatabase } from '../lib/database';
+import { agregarFestivo, supabase } from '../lib/supabase';
 
 // Festivos fijos (día y mes siempre igual)
 const festivosFijos = [
@@ -59,18 +59,36 @@ function trasladarALunes(fecha: Date): Date {
 }
 
 // Función para verificar si una fecha ya existe
-async function fechaExiste(pool: any, fecha: string): Promise<boolean> {
-  const [rows]: any = await pool.execute('SELECT COUNT(*) as count FROM festivos WHERE fecha = ?', [fecha]);
-  return rows[0].count > 0;
+async function fechaExiste(fecha: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('festivos')
+    .select('id')
+    .eq('fecha', fecha)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+    console.error('Error al verificar fecha existente:', error);
+    return false;
+  }
+  
+  return !!data;
 }
 
 async function main() {
   try {
-    console.log('Conectando a la base de datos...');
-    const pool = await connectToDatabase();
+    console.log('Conectando a Supabase...');
     
     console.log('Eliminando festivos existentes...');
-    await pool.execute('DELETE FROM festivos');
+    const { error: deleteError } = await supabase
+      .from('festivos')
+      .delete()
+      .neq('id', 0); // Delete all records
+    
+    if (deleteError) {
+      console.error('Error al eliminar festivos:', deleteError);
+      return;
+    }
+    
     console.log('Festivos existentes eliminados.');
 
     let totalFestivos = 0;
@@ -82,7 +100,7 @@ async function main() {
       // Fijos
       for (const festivo of festivosFijos) {
         const fecha = `${year}-${String(festivo.mes).padStart(2, '0')}-${String(festivo.dia).padStart(2, '0')}`;
-        if (!(await fechaExiste(pool, fecha))) {
+        if (!(await fechaExiste(fecha))) {
           await agregarFestivo(fecha, festivo.nombre, 'FIJO');
           totalFestivos++;
         } else {
@@ -96,7 +114,7 @@ async function main() {
         const fechaOriginal = new Date(year, festivo.mes - 1, festivo.dia);
         const fechaLunes = trasladarALunes(fechaOriginal);
         const fecha = `${fechaLunes.getFullYear()}-${String(fechaLunes.getMonth() + 1).padStart(2, '0')}-${String(fechaLunes.getDate()).padStart(2, '0')}`;
-        if (!(await fechaExiste(pool, fecha))) {
+        if (!(await fechaExiste(fecha))) {
           await agregarFestivo(fecha, festivo.nombre, 'MOVIL');
           totalFestivos++;
         } else {
@@ -113,7 +131,7 @@ async function main() {
         fechaBase.setDate(fechaBase.getDate() + festivo.offset);
         let fechaFinal = festivo.emiliani ? trasladarALunes(fechaBase) : fechaBase;
         const fecha = `${fechaFinal.getFullYear()}-${String(fechaFinal.getMonth() + 1).padStart(2, '0')}-${String(fechaFinal.getDate()).padStart(2, '0')}`;
-        if (!(await fechaExiste(pool, fecha))) {
+        if (!(await fechaExiste(fecha))) {
           await agregarFestivo(fecha, festivo.nombre, 'MOVIL');
           totalFestivos++;
         } else {
@@ -130,9 +148,12 @@ async function main() {
     
     // Verificar algunos festivos importantes
     console.log('\nVerificando algunos festivos importantes:');
-    const [rows]: any = await pool.execute('SELECT * FROM festivos WHERE fecha IN (?, ?, ?)', 
-      ['2025-06-02', '2024-03-28', '2024-03-29']);
-    console.log('Festivos verificados:', rows);
+    const { data: festivos } = await supabase
+      .from('festivos')
+      .select('*')
+      .in('fecha', ['2025-06-02', '2024-03-28', '2024-03-29']);
+    
+    console.log('Festivos verificados:', festivos);
 
   } catch (error) {
     console.error('Error durante la migración:', error);

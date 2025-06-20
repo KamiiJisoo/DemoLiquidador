@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { obtenerAccesos, limpiarAccesos } from '@/lib/database';
+import { NextRequest, NextResponse } from 'next/server';
+import { obtenerAccesos, limpiarAccesos } from '@/lib/supabase';
 
 export async function POST() {
   try {
@@ -15,6 +15,23 @@ export async function POST() {
     console.error('Error al crear resumen de accesos:', error);
     return NextResponse.json(
       { error: 'Error al crear resumen de accesos' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE() {
+  try {
+    await limpiarAccesos();
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Accesos limpiados exitosamente' 
+    });
+  } catch (error) {
+    console.error('Error al limpiar accesos:', error);
+    return NextResponse.json(
+      { error: 'Error al limpiar accesos' },
       { status: 500 }
     );
   }

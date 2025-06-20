@@ -1,4 +1,4 @@
-import { connectToDatabase, agregarFestivo, eliminarFestivo } from '../lib/database';
+import { agregarFestivo, eliminarFestivo, supabase } from '../lib/supabase';
 import festivosInfo from '../data/festivos_info.json';
 import festivos from '../data/festivos.json';
 
@@ -7,18 +7,39 @@ type Festivos = Record<AñoFestivo, string[]>;
 
 async function migrarFestivos() {
   try {
-    const pool = await connectToDatabase();
+    console.log('Conectando a Supabase...');
     
     // Limpiar tabla de festivos
-    await pool.execute('DELETE FROM festivos');
+    const { error: deleteError } = await supabase
+      .from('festivos')
+      .delete()
+      .neq('id', 0); // Delete all records
+    
+    if (deleteError) {
+      console.error('Error al limpiar festivos:', deleteError);
+      return;
+    }
+    
+    console.log('Tabla de festivos limpiada');
     
     // Insertar festivos fijos
     for (const [fecha, nombre] of Object.entries(festivosInfo.festivos_fijos)) {
       for (let año = 2024; año <= 2040; año++) {
         const fechaCompleta = `${año}-${fecha}`;
+        
         // Verificar si la fecha ya existe en la tabla
-        const [rows]: any = await pool.execute('SELECT COUNT(*) as count FROM festivos WHERE fecha = ?', [fechaCompleta]);
-        if (rows[0].count === 0) {
+        const { data: existingFestivos, error: checkError } = await supabase
+          .from('festivos')
+          .select('id')
+          .eq('fecha', fechaCompleta)
+          .single();
+        
+        if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
+          console.error('Error al verificar festivo existente:', checkError);
+          continue;
+        }
+        
+        if (!existingFestivos) {
           await agregarFestivo(fechaCompleta, nombre, 'FIJO');
         }
       }
@@ -33,8 +54,18 @@ async function migrarFestivos() {
             const [añoFecha, mes, dia] = fecha.split('-').map(Number);
             if (añoFecha === año && mes === info.mes && info.dias.includes(dia)) {
               // Verificar si la fecha ya existe en la tabla
-              const [rows]: any = await pool.execute('SELECT COUNT(*) as count FROM festivos WHERE fecha = ?', [fecha]);
-              if (rows[0].count === 0) {
+              const { data: existingFestivos, error: checkError } = await supabase
+                .from('festivos')
+                .select('id')
+                .eq('fecha', fecha)
+                .single();
+              
+              if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
+                console.error('Error al verificar festivo existente:', checkError);
+                continue;
+              }
+              
+              if (!existingFestivos) {
                 await agregarFestivo(fecha, nombre, 'MOVIL');
               }
             }
