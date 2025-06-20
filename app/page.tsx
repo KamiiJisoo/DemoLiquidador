@@ -2127,6 +2127,17 @@ export default function ControlHorasExtras() {
   const handleCambioAñoFestivos = (año: string) => {
     setAñoSeleccionado(año);
   };
+
+  // Función para hacer scroll suave hacia la sección de festivos
+  const scrollToFestivos = () => {
+    const element = document.getElementById('gestion-festivos');
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
   
   const handleSubmitFestivo = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -2860,8 +2871,8 @@ export default function ControlHorasExtras() {
               Gestión de Cargos
             </button>
             <button
-              className={`px-6 py-2 rounded-md font-bold transition-colors text-gray-500`}
-              onClick={() => {}}
+              className={`px-6 py-2 rounded-md font-bold transition-colors text-gray-500 hover:text-gray-700 hover:bg-gray-100`}
+              onClick={scrollToFestivos}
             >
               Gestión de Festivos
             </button>
@@ -3026,7 +3037,7 @@ export default function ControlHorasExtras() {
           </div>
           
           {/* Sección de Festivos */}
-          <div className="bg-white rounded-xl shadow-md p-6 mt-8">
+          <div id="gestion-festivos" className="bg-white rounded-xl shadow-md p-6 mt-8">
             <div className="flex items-center gap-3 mb-6">
               <Calendar className="w-6 h-6 text-red-500" />
               <h2 className="text-2xl font-bold text-gray-900">Gestión de Festivos</h2>
