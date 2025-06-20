@@ -72,6 +72,13 @@ interface CalculoHoras {
   horasExtNocturnasFestivos: number
 }
 
+interface DesgloseCompensatorio {
+  diurnaLV: { minutos: number, valor: number, porcentaje: number }
+  nocturnaLV: { minutos: number, valor: number, porcentaje: number }
+  diurnaFestivo: { minutos: number, valor: number, porcentaje: number }
+  nocturnaFestivo: { minutos: number, valor: number, porcentaje: number }
+}
+
 // Interfaz para el evento de cambio
 interface ChangeEvent<T = Element> {
   target: EventTarget & T
@@ -479,6 +486,12 @@ export default function ControlHorasExtras() {
   const [totalHorasExtras, setTotalHorasExtras] = useState(0)
   const [totalAPagar, setTotalAPagar] = useState(0)
   const [tiempoCompensatorio, setTiempoCompensatorio] = useState(0)
+  const [desgloseCompensatorio, setDesgloseCompensatorio] = useState<DesgloseCompensatorio>({
+    diurnaLV: { minutos: 0, valor: 0, porcentaje: 1.25 },
+    nocturnaLV: { minutos: 0, valor: 0, porcentaje: 1.75 },
+    diurnaFestivo: { minutos: 0, valor: 0, porcentaje: 2.25 },
+    nocturnaFestivo: { minutos: 0, valor: 0, porcentaje: 2.75 }
+  })
   const [calculoHoras, setCalculoHoras] = useState<CalculoHoras>({
     horasNormales: 0,
     horasNocturnasLV: 0,
@@ -706,6 +719,22 @@ export default function ControlHorasExtras() {
     const [hours, minutes] = time.split(':');
     const hour = parseInt(hours);
     return `${hour.toString().padStart(2, '0')}:${minutes}`;
+  }
+  
+  // Función para formatear tiempo compensatorio en formato "X horas Y minutos"
+  const formatTiempoCompensatorio = (horas: number) => {
+    const horasEnteras = Math.floor(horas)
+    const minutos = Math.round((horas - horasEnteras) * 60)
+    
+    if (minutos === 0) {
+      return horasEnteras === 1 ? `${horasEnteras} hora` : `${horasEnteras} horas`
+    } else if (horasEnteras === 0) {
+      return `${minutos} minutos`
+    } else if (horasEnteras === 1) {
+      return `${horasEnteras} hora ${minutos} minutos`
+    } else {
+      return `${horasEnteras} horas ${minutos} minutos`
+    }
   }
 
   // Calcular las semanas del mes
@@ -996,6 +1025,25 @@ export default function ControlHorasExtras() {
     let excedente = 0
     let minutosCompensar = 0
 
+    // Definir el tipo para los tipos de horas extras
+    type TipoHoraExtra = 'diurnaLV' | 'nocturnaLV' | 'diurnaFestivo' | 'nocturnaFestivo';
+    
+    // Mapa para contar cuántos minutos de cada tipo de hora extra se han registrado
+    let minutosExtraPorTipo: Record<TipoHoraExtra, number> = {
+      'diurnaLV': 0,
+      'nocturnaLV': 0,
+      'diurnaFestivo': 0,
+      'nocturnaFestivo': 0
+    };
+    
+    // Mapa para contar minutos compensatorios por tipo (después del tope)
+    let minutosCompensatoriosPorTipo: Record<TipoHoraExtra, number> = {
+      'diurnaLV': 0,
+      'nocturnaLV': 0,
+      'diurnaFestivo': 0,
+      'nocturnaFestivo': 0
+    };
+    
     // Procesar cada día con datos
     Object.entries(diasMes).forEach(([fecha, dia]) => {
       if (dia.total === "Error") return
@@ -1027,11 +1075,35 @@ export default function ControlHorasExtras() {
             if (esFestivo && esDiurno) recDomDia++      // Dom/fest (06:00-18:00) 200%
           } else {
             // HORAS EXTRAS
-            let valorEsteMinuto = 0
-            if (!esFestivo && esDiurno) { extDia++; valorEsteMinuto = valorMinuto * 1.25 } // L-S (06:00-18:00) 125%
-            if (!esFestivo && esNocturno) { extNoct++; valorEsteMinuto = valorMinuto * 1.75 } // L-S (18:00-06:00) 175%
-            if (esFestivo && esDiurno) { extDomDia++; valorEsteMinuto = valorMinuto * 2.25 } // Dom/fest (06:00-18:00) 225%
-            if (esFestivo && esNocturno) { extDomNoct++; valorEsteMinuto = valorMinuto * 2.75 } // Dom/fest (18:00-06:00) 275%
+                          let valorEsteMinuto = 0
+              let tipoHoraActual: TipoHoraExtra | undefined = undefined;
+            
+            // Solo un tipo de hora puede aplicar para cada minuto
+            if (!esFestivo && esDiurno) { 
+              extDia++; 
+              valorEsteMinuto = valorMinuto * 1.25; // L-S (06:00-18:00) 125%
+              tipoHoraActual = 'diurnaLV';
+              minutosExtraPorTipo['diurnaLV']++;
+            }
+            else if (!esFestivo && esNocturno) { 
+              extNoct++; 
+              valorEsteMinuto = valorMinuto * 1.75; // L-S (18:00-06:00) 175%
+              tipoHoraActual = 'nocturnaLV';
+              minutosExtraPorTipo['nocturnaLV']++;
+            }
+            else if (esFestivo && esDiurno) { 
+              extDomDia++; 
+              valorEsteMinuto = valorMinuto * 2.25; // Dom/fest (06:00-18:00) 225%
+              tipoHoraActual = 'diurnaFestivo';
+              minutosExtraPorTipo['diurnaFestivo']++;
+            }
+            else if (esFestivo && esNocturno) { 
+              extDomNoct++; 
+              valorEsteMinuto = valorMinuto * 2.75; // Dom/fest (18:00-06:00) 275%
+              tipoHoraActual = 'nocturnaFestivo';
+              minutosExtraPorTipo['nocturnaFestivo']++;
+            }
+            
             if (dineroExtrasAcumulado < topeMaximo) {
               dineroExtrasAcumulado += valorEsteMinuto
               if (dineroExtrasAcumulado >= topeMaximo && !topeAlcanzado) {
@@ -1043,6 +1115,10 @@ export default function ControlHorasExtras() {
             } else {
               // Excedente para compensatorio
               minutosCompensar++
+              // Registrar el tipo de hora extra que se está compensando
+              if (tipoHoraActual) {
+                minutosCompensatoriosPorTipo[tipoHoraActual]++;
+              }
             }
           }
           horaActual = horaFin
@@ -1064,18 +1140,78 @@ export default function ControlHorasExtras() {
 
     // Tope: solo aplica a extras
     let pagoExtras = totalExtrasCalculado
-    let horasCompensatorias = 0
-    if (dineroExtrasAcumulado > topeMaximo) {
+    let tiempoCompensatorioMinutos = 0
+    let excedenteDinero = 0
+    
+    // Variables para el desglose del tiempo compensatorio
+    let compDiurnaLVMinutos = 0
+    let compNocturnaLVMinutos = 0
+    let compDiurnaFestivoMinutos = 0
+    let compNocturnaFestivoMinutos = 0
+    
+    if (totalExtrasCalculado > topeMaximo) {
       pagoExtras = topeMaximo
-      // Convertir el excedente a tiempo compensatorio (en minutos)
-      horasCompensatorias = minutosCompensar > 0 ? Math.floor(minutosCompensar / 60) : 0
+      excedenteDinero = totalExtrasCalculado - topeMaximo
+      
+      // Usar los minutos compensatorios por tipo registrados después del tope
+      compDiurnaLVMinutos = minutosCompensatoriosPorTipo.diurnaLV;
+      compNocturnaLVMinutos = minutosCompensatoriosPorTipo.nocturnaLV;
+      compDiurnaFestivoMinutos = minutosCompensatoriosPorTipo.diurnaFestivo;
+      compNocturnaFestivoMinutos = minutosCompensatoriosPorTipo.nocturnaFestivo;
+      
+      // Verificar que la suma sea igual a minutosCompensar
+      const sumaMinutos = compDiurnaLVMinutos + compNocturnaLVMinutos + compDiurnaFestivoMinutos + compNocturnaFestivoMinutos;
+      
+      // Si hay alguna discrepancia (por redondeo o cálculo), ajustar
+      if (sumaMinutos !== minutosCompensar) {
+        const diferencia = minutosCompensar - sumaMinutos;
+        
+        // Determinar qué tipo de hora compensatoria tiene más minutos para ajustar
+        if (compDiurnaLVMinutos > 0) {
+          compDiurnaLVMinutos += diferencia;
+        } else if (compNocturnaLVMinutos > 0) {
+          compNocturnaLVMinutos += diferencia;
+        } else if (compDiurnaFestivoMinutos > 0) {
+          compDiurnaFestivoMinutos += diferencia;
+        } else if (compNocturnaFestivoMinutos > 0) {
+          compNocturnaFestivoMinutos += diferencia;
+        } else {
+          // Si no hay ningún tipo con minutos, asignar al tipo diurnaLV por defecto
+          compDiurnaLVMinutos += diferencia;
+        }
+      }
+      
+      // Calcular valores monetarios para cada tipo
+      const valorCompDiurnaLV = valorMinuto * compDiurnaLVMinutos * 1.25
+      const valorCompNocturnaLV = valorMinuto * compNocturnaLVMinutos * 1.75
+      const valorCompDiurnaFestivo = valorMinuto * compDiurnaFestivoMinutos * 2.25
+      const valorCompNocturnaFestivo = valorMinuto * compNocturnaFestivoMinutos * 2.75
+      
+      // Actualizar desglose
+      setDesgloseCompensatorio({
+        diurnaLV: { minutos: compDiurnaLVMinutos, valor: valorCompDiurnaLV, porcentaje: 1.25 },
+        nocturnaLV: { minutos: compNocturnaLVMinutos, valor: valorCompNocturnaLV, porcentaje: 1.75 },
+        diurnaFestivo: { minutos: compDiurnaFestivoMinutos, valor: valorCompDiurnaFestivo, porcentaje: 2.25 },
+        nocturnaFestivo: { minutos: compNocturnaFestivoMinutos, valor: valorCompNocturnaFestivo, porcentaje: 2.75 }
+      })
+      
+      // Convertir el excedente a tiempo compensatorio (en minutos exactos)
+      tiempoCompensatorioMinutos = compDiurnaLVMinutos + compNocturnaLVMinutos + compDiurnaFestivoMinutos + compNocturnaFestivoMinutos
+    } else {
+      // Reiniciar desglose si no hay tiempo compensatorio
+      setDesgloseCompensatorio({
+        diurnaLV: { minutos: 0, valor: 0, porcentaje: 1.25 },
+        nocturnaLV: { minutos: 0, valor: 0, porcentaje: 1.75 },
+        diurnaFestivo: { minutos: 0, valor: 0, porcentaje: 2.25 },
+        nocturnaFestivo: { minutos: 0, valor: 0, porcentaje: 2.75 }
+      })
     }
 
     setTotalHorasMes(totalMinutos)
     setTotalRecargos(totalRecargosCalculado)
     setTotalHorasExtras(pagoExtras)
     setTotalAPagar(totalRecargosCalculado + pagoExtras)
-    setTiempoCompensatorio(horasCompensatorias)
+    setTiempoCompensatorio(tiempoCompensatorioMinutos / 60) // Guardamos en horas con decimales
     setTopeFecha(topeFechaLocal)
     setTopeHora(topeHoraLocal)
     setCalculoHoras({
@@ -1390,6 +1526,14 @@ export default function ControlHorasExtras() {
   const valorExtraNocturnaLV = valorMinuto * calculoHoras.horasExtNocturnasLV * 1.75
   const valorExtraDiurnaFestivo = valorMinuto * calculoHoras.horasExtDiurnasFestivos * 2.25
   const valorExtraNocturnaFestivo = valorMinuto * calculoHoras.horasExtNocturnasFestivos * 2.75
+  
+  // Calcular totales de recargos y extras
+  const totalRecargosCalculado = valorRecargoNocturnoLV + valorRecargoNocturnoFestivo + valorRecargoDiurnoFestivo
+  const totalExtrasCalculado = valorExtraDiurnaLV + valorExtraNocturnaLV + valorExtraDiurnaFestivo + valorExtraNocturnaFestivo
+  const topeMaximo = salarioMensual * 0.5
+  
+  // Calcular el valor monetario del tiempo compensatorio (excedente del 50% del salario)
+  const valorTiempoCompensatorio = totalExtrasCalculado > topeMaximo ? totalExtrasCalculado - topeMaximo : 0
 
   useEffect(() => {
     const loadFestivos = async () => {
@@ -2444,7 +2588,8 @@ export default function ControlHorasExtras() {
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 font-bold">Tiempo compensatorio</div>
-                    <div className="text-2xl font-bold text-black">{tiempoCompensatorio} Horas</div>
+                    <div className="text-2xl font-bold text-black">{formatTiempoCompensatorio(tiempoCompensatorio)}</div>
+                    
                   </div>
                 </div>
               </div>
@@ -2461,7 +2606,7 @@ export default function ControlHorasExtras() {
                 </div>
               )}
             </div>
-            <section className="w-full mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <section className="w-full mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Recargos */}
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col gap-4">
                 <div className="uppercase text-bomberored-700 font-bold text-base mb-2">Recargos</div>
@@ -2505,10 +2650,65 @@ export default function ControlHorasExtras() {
                 </div>
                 <div className="font-bold text-right mt-2">Total Extras: <span className="text-bomberored-700">${formatNumberWithSpace(totalHorasExtras)}</span></div>
               </div>
+              
+              {/* Tiempo Compensatorio */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col gap-4">
+                <div className="uppercase text-green-700 font-bold text-base mb-2">Tiempo Compensatorio</div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Horas Compensatorias</span>
+                    <span>{formatTiempoCompensatorio(tiempoCompensatorio)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Valor por Hora</span>
+                    <span>${formatNumberWithSpace(valorHora)}</span>
+                  </div>
+                </div>
+                
+                {/* Desglose del tiempo compensatorio */}
+                {tiempoCompensatorio > 0 && (
+                  <div className="mt-2 space-y-2 border-t pt-2 border-gray-100">
+                    <div className="text-sm font-semibold text-gray-700 mb-1">Desglose por tipo:</div>
+                    
+                    {/* Siempre mostrar todos los tipos, incluso con valor cero */}
+                    <div className="flex justify-between text-sm">
+                      <span>Extra Diurna L-V ({(desgloseCompensatorio.diurnaLV.porcentaje * 100).toFixed(0)}%)</span>
+                      <span>{Math.floor(desgloseCompensatorio.diurnaLV.minutos / 60)}h {desgloseCompensatorio.diurnaLV.minutos % 60}m <span className="text-gray-400">(${formatNumberWithSpace(desgloseCompensatorio.diurnaLV.valor)})</span></span>
+                    </div>
+                    
+                    <div className="flex justify-between text-sm">
+                      <span>Extra Nocturna L-V ({(desgloseCompensatorio.nocturnaLV.porcentaje * 100).toFixed(0)}%)</span>
+                      <span>{Math.floor(desgloseCompensatorio.nocturnaLV.minutos / 60)}h {desgloseCompensatorio.nocturnaLV.minutos % 60}m <span className="text-gray-400">(${formatNumberWithSpace(desgloseCompensatorio.nocturnaLV.valor)})</span></span>
+                    </div>
+                    
+                    <div className="flex justify-between text-sm">
+                      <span>Extra Diurna Festivo ({(desgloseCompensatorio.diurnaFestivo.porcentaje * 100).toFixed(0)}%)</span>
+                      <span>{Math.floor(desgloseCompensatorio.diurnaFestivo.minutos / 60)}h {desgloseCompensatorio.diurnaFestivo.minutos % 60}m <span className="text-gray-400">(${formatNumberWithSpace(desgloseCompensatorio.diurnaFestivo.valor)})</span></span>
+                    </div>
+                    
+                    <div className="flex justify-between text-sm">
+                      <span>Extra Nocturna Festivo ({(desgloseCompensatorio.nocturnaFestivo.porcentaje * 100).toFixed(0)}%)</span>
+                      <span>{Math.floor(desgloseCompensatorio.nocturnaFestivo.minutos / 60)}h {desgloseCompensatorio.nocturnaFestivo.minutos % 60}m <span className="text-gray-400">(${formatNumberWithSpace(desgloseCompensatorio.nocturnaFestivo.valor)})</span></span>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-100">
+                  <div className="text-sm text-gray-600 mb-2">
+                    El tiempo compensatorio representa las horas que pueden ser tomadas como descanso en lugar de ser pagadas.
+                    Cada tipo de hora mantiene su porcentaje correspondiente.
+                  </div>
+                </div>
+                <div className="font-bold text-right mt-2">Valor Total: <span className="text-green-700">${formatNumberWithSpace(valorTiempoCompensatorio)}</span></div>
+              </div>
             </section>
             {/* Resumen final */}
-            <div className="w-full text-right mt-4 font-bold text-lg">
-              Total recargos y horas extras: <span className="text-bomberored-800">${formatNumberWithSpace(totalAPagar)}</span>
+            <div className="w-full mt-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                <div className="font-bold text-lg">
+                  Total recargos y horas extras: <span className="text-bomberored-800">${formatNumberWithSpace(totalAPagar)}</span>
+                </div>
+              </div>
             </div>
             {topeFecha && topeHora && (
               <div className="w-full text-right mt-2 font-medium text-base text-gray-700">
