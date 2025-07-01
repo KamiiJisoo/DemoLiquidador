@@ -2002,18 +2002,10 @@ export default function ControlHorasExtras() {
     const totalAPagar = valorHorasNormales + valorHorasNocturnas + valorHorasFestivoDiurnas + 
                        valorHorasFestivoNocturnas + valorExtrasAPagar;
     
-    // Crear desglose para el tooltip
+    // Crear desglose para el tooltip - solo mostrar recargos y extras (sin horas normales)
     const desglose = [];
     
-    // Agregar recargos al desglose
-    if (horasNormales > 0) {
-      desglose.push({
-        tipo: "Horas normales",
-        horas: formatHorasDecimales(horasNormales),
-        valor: valorHorasNormales
-      });
-    }
-    
+    // Agregar solo recargos al desglose (sin horas normales)
     if (horasNocturnas > 0) {
       desglose.push({
         tipo: "Recargo nocturno L-S (35%)",
@@ -2611,40 +2603,35 @@ export default function ControlHorasExtras() {
                           </div>
                         )}
                         
-                        {/* Tooltip con desglose */}
-                        {dia.total && dia.total !== "0:00" && dia.total !== "Error" && (
-                          <div className="absolute z-50 invisible group-hover:visible bg-white border border-gray-200 shadow-lg rounded-md p-3 w-72 -left-28 top-full mt-1">
+                        {/* Tooltip con desglose - solo mostrar si hay recargos o extras */}
+                        {dia.total && dia.total !== "0:00" && dia.total !== "Error" && calcularValorMonetarioDia(fechaStr, dia).desglose.length > 0 && (
+                          <div className="absolute z-50 invisible group-hover:visible bg-white border border-gray-200 shadow-lg rounded-md p-3 w-96 -left-40 top-full mt-1">
                             <div className="text-left text-sm font-medium text-gray-700 mb-2">
                               Desglose de horas:
                             </div>
                             <div className="space-y-1">
                               {calcularValorMonetarioDia(fechaStr, dia).desglose.map((item, idx) => (
-                                <div key={idx} className="flex justify-between text-xs">
-                                  <span className="text-gray-600">{item.tipo} ({item.horas})</span>
-                                  <span className="text-green-600 font-medium">${formatNumberWithSpace(item.valor)}</span>
+                                <div key={idx} className="flex justify-between items-center text-xs gap-3 min-w-0">
+                                  <span className="text-gray-600 whitespace-nowrap">{item.tipo} ({item.horas})</span>
+                                  <span className="text-green-600 font-medium whitespace-nowrap flex-shrink-0">${formatNumberWithSpace(item.valor)}</span>
                                 </div>
                               ))}
                               
                               {/* Mostrar horas compensatorias si existen */}
                               {calcularValorMonetarioDia(fechaStr, dia).horasCompensatorias > 0 && (
                                 <div className="mt-2 pt-1 border-t border-gray-200">
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-amber-600 font-medium">Horas compensatorias</span>
-                                    <span className="text-amber-600 font-medium">
+                                  <div className="flex justify-between items-center text-xs gap-3 min-w-0">
+                                    <span className="text-amber-600 font-medium whitespace-nowrap">Horas compensatorias</span>
+                                    <span className="text-amber-600 font-medium whitespace-nowrap flex-shrink-0">
                                       {formatHorasDecimales(calcularValorMonetarioDia(fechaStr, dia).horasCompensatorias)}h
                                     </span>
                                   </div>
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-amber-600">Valor compensatorio</span>
-                                    <span className="text-amber-600">${formatNumberWithSpace(calcularValorMonetarioDia(fechaStr, dia).valorCompensatorio)}</span>
+                                  <div className="flex justify-between items-center text-xs gap-3 min-w-0">
+                                    <span className="text-amber-600 whitespace-nowrap">Valor compensatorio</span>
+                                    <span className="text-amber-600 whitespace-nowrap flex-shrink-0">${formatNumberWithSpace(calcularValorMonetarioDia(fechaStr, dia).valorCompensatorio)}</span>
                                   </div>
                                 </div>
                               )}
-                              
-                              <div className="border-t border-gray-200 mt-1 pt-1 flex justify-between font-medium">
-                                <span>Total</span>
-                                <span className="text-green-600">${formatNumberWithSpace(calcularValorMonetarioDia(fechaStr, dia).total)}</span>
-                              </div>
                             </div>
                           </div>
                         )}
