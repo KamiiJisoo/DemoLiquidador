@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { obtenerCargos, agregarCargo } from '@/lib/database';
+import { obtenerCargos, agregarCargo, inicializarDatosPredefinidos } from '@/lib/database';
 
 export async function GET() {
   console.log('GET /api/cargos called');
   try {
+    // Inicializar datos predefinidos si es necesario
+    await inicializarDatosPredefinidos();
+    
     const cargos = await obtenerCargos();
     console.log('Successfully fetched cargos in GET /api/cargos');
     return NextResponse.json({ cargos });

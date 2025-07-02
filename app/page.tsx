@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { format, addDays, startOfMonth, endOfMonth, parse, differenceInHours, differenceInMinutes, getDaysInMonth, startOfWeek, endOfWeek, isSameMonth, isBefore, isAfter, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
+import { ensureDateFormat, formatDateForSupabase, parseDateSafe } from "@/lib/dateUtils"
 import { Calendar, Clock, AlertCircle, Lock } from "lucide-react"
 import DatePicker from "react-datepicker"
 import "react-datepicker/dist/react-datepicker.css"
@@ -1672,14 +1673,23 @@ export default function ControlHorasExtras() {
         const data = await res.json();
         console.log('Fetched raw data:', data); // Log datos crudos
         if (data && Array.isArray(data.festivos)) {
-          // Formatear la fecha de cada festivo a "yyyy-MM-dd"
-          const formattedFestivos = data.festivos.map((f: { fecha: string | Date; nombre: string; tipo: 'FIJO' | 'MOVIL' }) => ({
-            ...f,
-            fecha: format(new Date(f.fecha), "yyyy-MM-dd")
-          }));
+          console.log('Raw festivos data:', data.festivos.slice(0, 5));
+          
+          // Las fechas ya vienen en formato correcto desde Supabase (YYYY-MM-DD)
+          // No necesitamos formatearlas, solo usarlas directamente
+          const formattedFestivos = data.festivos.map((f: { fecha: string | Date; nombre: string; tipo: 'FIJO' | 'MOVIL' }) => {
+            // Si la fecha es string y ya está en formato YYYY-MM-DD, usarla tal como está
+            const fecha = ensureDateFormat(f.fecha);
+              
+            console.log(`Date processing: ${f.fecha} -> ${fecha} (${f.nombre})`);
+            return {
+              ...f,
+              fecha: fecha
+            };
+          });
           setFestivos(formattedFestivos);
-          console.log('Holidays loaded successfully. Total:', formattedFestivos.length); // Log éxito y cantidad
-          console.log('Example holidays:', formattedFestivos.slice(0, 5)); // Log primeros 5
+          console.log('Holidays loaded successfully. Total:', formattedFestivos.length);
+          console.log('Final formatted holidays:', formattedFestivos.slice(0, 5));
         } else {
           console.error('Fetched data does not contain a festivos array or is not an array:', data); // Log error en formato
           setFestivos([]);
@@ -2139,7 +2149,7 @@ export default function ControlHorasExtras() {
         return;
       }
       
-      const fechaFormateada = format(nuevoFestivoFecha, 'yyyy-MM-dd');
+      const fechaFormateada = formatDateForSupabase(nuevoFestivoFecha);
       
       const res = await fetch('/api/festivos', {
         method: 'POST',
@@ -2179,7 +2189,7 @@ export default function ControlHorasExtras() {
       }
       
       // Asegurarse de que la fecha esté en formato yyyy-MM-dd
-      const fechaFormateada = format(new Date(fecha), 'yyyy-MM-dd');
+      const fechaFormateada = ensureDateFormat(fecha);
       console.log('Fecha formateada:', fechaFormateada);
       
       const res = await fetch(`/api/festivos?fecha=${fechaFormateada}`, {
@@ -2837,7 +2847,7 @@ export default function ControlHorasExtras() {
             </div>
             {topeFecha && topeHora && (
               <div className="w-full text-right mt-2 font-medium text-base text-gray-700">
-                Tope del 50% alcanzado el <span className="font-bold">{format(parse(topeFecha, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy')}</span> a las <span className="font-bold">{topeHora}</span>
+                Tope del 50% alcanzado el <span className="font-bold">{format(parseDateSafe(topeFecha), 'dd/MM/yyyy')}</span> a las <span className="font-bold">{topeHora}</span>
                 <div className="text-sm text-gray-600 mt-1">
                   Los valores de horas extras han sido ajustados proporcionalmente para sumar exactamente el tope del 50% del salario (${formatCurrency(topeMaximo)})
                 </div>
@@ -3139,7 +3149,7 @@ export default function ControlHorasExtras() {
                       {festivosPorAño.map((festivo) => (
                         <tr key={festivo.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {format(new Date(festivo.fecha), "dd/MM/yyyy")}
+                            {format(parseDateSafe(festivo.fecha), "dd/MM/yyyy")}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {festivo.nombre}
