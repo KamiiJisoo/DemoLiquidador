@@ -8,14 +8,8 @@
 [build.environment]
   NEXT_PRIVATE_TARGET = "server"
 
-# Redirect all requests to Next.js
+# Redirect all requests to Next.js (simplified)
 [[redirects]]
   from = "/*"
-  to = "/.netlify/functions/___netlify-handler"
-  status = 200
-
-# Handle API routes
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/___netlify-handler"
+  to = "/index.html"
   status = 200 
