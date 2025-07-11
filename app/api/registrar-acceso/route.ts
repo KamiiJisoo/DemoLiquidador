@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { registrarAcceso } from '@/lib/database';
+import { registrarAcceso } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   console.log('POST /api/registrar-acceso called');

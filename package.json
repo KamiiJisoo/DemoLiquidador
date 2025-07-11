@@ -6,10 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "export": "next build && next export",
-    "deploy": "gh-pages -d out",
-    "migrar-festivos": "tsx scripts/migrar_festivos.ts"
+    "lint": "next lint"
   },
   "dependencies": {
     "@next/swc-win32-x64-msvc": "^15.3.2",
@@ -39,7 +36,6 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@supabase/supabase-js": "^2.50.0",
-    "better-sqlite3": "^11.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -61,16 +57,13 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
+    "@netlify/plugin-nextjs": "^5.7.2",
     "@types/node": "^20.17.50",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.16",
-    "gh-pages": "^6.3.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.19.4",
     "typescript": "^5.3.3"
   }
 }

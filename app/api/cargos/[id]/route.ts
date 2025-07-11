@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { actualizarCargo, eliminarCargo } from '@/lib/database';
+import { actualizarCargo, eliminarCargo } from '@/lib/supabase';
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   console.log('PUT /api/cargos/[id] called with id:', params.id);
@@ -12,7 +12,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     await actualizarCargo(id, nombre, salario);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Database Error (actualizarCargo):', error);
     console.error('Error al actualizar cargo:', error);
     return NextResponse.json({ error: 'Error al actualizar cargo' }, { status: 500 });
   }
@@ -28,7 +27,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     await eliminarCargo(id);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Database Error (eliminarCargo):', error);
     console.error('Error al eliminar cargo:', error);
     return NextResponse.json({ error: 'Error al eliminar cargo' }, { status: 500 });
   }

@@ -9,8 +9,13 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  output: 'export',
-  // basePath: process.env.NODE_ENV === 'production' ? '/PruebaPagBomberos' : '',
+  // Configuration for Netlify deployment
+  trailingSlash: true,
+  
+  // Add experimental features for better compatibility
+  experimental: {
+    serverComponentsExternalPackages: ['mysql2'],
+  },
 }
 
 export default nextConfig

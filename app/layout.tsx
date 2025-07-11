@@ -15,11 +15,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Registrar acceso al cargar la página
-  if (typeof window !== 'undefined') {
-    fetch('/api/registrar-acceso', { method: 'POST' });
-  }
-
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen bg-[var(--background)] flex flex-col`}>

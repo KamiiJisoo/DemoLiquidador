@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { obtenerAccesos, limpiarAccesos } from '@/lib/database';
+import { obtenerAccesos, limpiarAccesos } from '@/lib/supabase';
 
 export async function POST() {
   try {

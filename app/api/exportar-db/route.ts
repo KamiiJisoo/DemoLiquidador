@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { exportarBaseDeDatos } from '@/lib/database';
+import { exportarBaseDeDatos } from '@/lib/supabase';
 
 export async function GET() {
   try {

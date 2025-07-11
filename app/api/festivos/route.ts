@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { obtenerFestivos, agregarFestivo, eliminarFestivo, obtenerFestivosPorAño } from '@/lib/database';
+import { obtenerFestivos, agregarFestivo, eliminarFestivo, obtenerFestivosPorAño } from '@/lib/supabase';
 
 export async function GET(request: Request) {
   try {
@@ -29,11 +29,12 @@ export async function POST(request: Request) {
     }
     
     const result = await agregarFestivo(fecha, nombre, tipo);
-    return NextResponse.json({ success: true, message: 'Festivo agregado correctamente', id: result.insertId });
+    return NextResponse.json({ success: true, message: 'Festivo agregado correctamente', data: result });
   } catch (error: any) {
     console.error('Error al agregar festivo:', error);
     
-    if (error.code === 'ER_DUP_ENTRY') {
+    // Supabase error handling
+    if (error.code === '23505') { // Unique constraint violation
       return NextResponse.json({ success: false, error: 'Ya existe un festivo en esta fecha' }, { status: 409 });
     }
     
@@ -52,7 +53,8 @@ export async function DELETE(request: Request) {
     
     const result = await eliminarFestivo(fecha);
     
-    if (result.affectedRows === 0) {
+    // Supabase returns the deleted data or null if nothing was deleted
+    if (!result) {
       return NextResponse.json({ success: false, error: 'Festivo no encontrado' }, { status: 404 });
     }
     
